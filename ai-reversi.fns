@@ -1,4 +1,0 @@
-; ai-reversi.asm
-Start                            = $C000
-VBlank                           = $C012
-Wait                             = $C00F

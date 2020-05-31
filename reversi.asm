@@ -41,4 +41,4 @@ VBlank:
 
   .bank 2
   .org $0000
-  .incbin "ai-reversi.chr"
+  .incbin "reversi.chr"
