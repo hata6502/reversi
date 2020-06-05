@@ -7,6 +7,8 @@ bgBufferLength .equ $40
 
   .rsset $00
 bgBufferIndex .rs $01
+titleAddress .rs $02
+titlePpuAddress .rs $02
 
   .rsset $0300
 bgBuffer .rs bgBufferLength
@@ -47,31 +49,82 @@ InitializeMemory:
   lda #$ff
   sta $400b
 
-  ldx bgBufferIndex
-  lda #$00
+  ldx #$00
+  lda #$3f
   sta bgBuffer,x
   inx
-  lda #$3f
+  lda #$00
   sta bgBuffer,x
   inx
   lda #$20
   sta bgBuffer,x
   inx
   ldy #$00
-LoadPallete:
-  lda Pallete,y
+LoadPalette:
+  lda Palette,y
   iny
   sta bgBuffer,x
   inx
   cpy #$20
-  bne LoadPallete
+  bne LoadPalette
   stx bgBufferIndex
+
+  lda #$00
+  sta titlePpuAddress
+  lda #$20
+  sta titlePpuAddress + 1
+  lda #low(Title)
+  sta titleAddress
+  lda #high(Title)
+  sta titleAddress + 1
+LoadTitleWait:
+  lda bgBufferIndex
+  bne LoadTitleWait
+  tax
+  lda titlePpuAddress + 1
+  sta bgBuffer,x
+  inx
+  lda titlePpuAddress
+  sta bgBuffer,x
+  inx
+  lda #$20
+  sta bgBuffer,x
+  inx
+  ldy #$00
+LoadTitle:
+  lda [titleAddress],y
+  iny
+  sta bgBuffer,x
+  inx
+  cpy #$20
+  bne LoadTitle
+  lda titlePpuAddress
+  clc
+  adc #$20
+  sta titlePpuAddress
+  lda titlePpuAddress + 1
+  adc #$00
+  sta titlePpuAddress + 1
+  lda titleAddress
+  clc
+  adc #$20
+  sta titleAddress
+  lda titleAddress + 1
+  adc #$00
+  sta titleAddress + 1
+  stx bgBufferIndex
+  lda titleAddress
+  cmp #low(Title + $0400)
+  bne LoadTitleWait
+  lda titleAddress + 1
+  cmp #high(Title + $0400)
+  bne LoadTitleWait
 
 Wait:
   jmp Wait
 
 VBlank:
-  ; TODO: BG バッファに書き込み中は処理しない。
+  ; TODO: 処理落ち中は BG バッファを処理しない。
   ldx #$00
 WritePpu:
   cpx bgBufferIndex
@@ -97,11 +150,14 @@ WritePpuDataBreak:
 WritePpuBreak:
   lda #$00
   sta bgBufferIndex
+  sta $2005
+  sta $2005
   rti
 
-Pallete:
-  .incbin "reversi.pal"
-TitleNameTable:
+Palette:
+  .incbin "palette.dat"
+
+Title:
   .incbin "title.nam"
 
   .bank 1
