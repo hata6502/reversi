@@ -1,0 +1,12 @@
+; reversi.asm
+LoadPallete                      = $C055
+WritePpu                         = $C069
+Start                            = $C000
+TitleNameTable                   = $C0B8
+WritePpuData                     = $C080
+InitializeMemory                 = $C008
+WritePpuDataBreak                = $C08F
+WritePpuBreak                    = $C092
+VBlank                           = $C067
+Wait                             = $C064
+Pallete                          = $C098
