@@ -113,6 +113,16 @@ LoadTitle:
   cmp #high(Title + $0400)
   bne LoadTitleWait
 
+  lda #%10000110
+  sta $4000
+  lda #%00000000
+  sta $4001
+  lda Notes + 69*2
+  sta $4002
+  lda Notes + 69*2 + 1
+  ORA #%00001000
+  sta $4003
+
 Wait:
   jmp Wait
 
@@ -149,94 +159,7 @@ WritePpuBreak:
 
 Palette:  .incbin "palette.dat"
 
-ScaleA0:  .dw 2033
-ScaleAS0: .dw 1919
-ScaleB0:  .dw 1811
-ScaleC1:  .dw 1709
-ScaleCS1: .dw 1613
-ScaleD1:  .dw 1523
-ScaleDS1: .dw 1437
-ScaleE1:  .dw 1357
-ScaleF1:  .dw 1280
-ScaleFS1: .dw 1208
-ScaleG1:  .dw 1141
-ScaleGS1: .dw 1077
-ScaleA1:  .dw 1016
-ScaleAS1: .dw 959
-ScaleB1:  .dw 905
-ScaleC2:  .dw 854
-ScaleCS2: .dw 806
-ScaleD2:  .dw 761
-ScaleDS2: .dw 718
-ScaleE2:  .dw 678
-ScaleF2:  .dw 640
-ScaleFS2: .dw 604
-ScaleG2:  .dw 570
-ScaleGS2: .dw 538
-ScaleA2:  .dw 508
-ScaleAS2: .dw 479
-ScaleB2:  .dw 452
-ScaleC3:  .dw 427
-ScaleCS3: .dw 403
-ScaleD3:  .dw 380
-ScaleDS3: .dw 359
-ScaleE3:  .dw 338
-ScaleF3:  .dw 319
-ScaleFS3: .dw 301
-ScaleG3:  .dw 284
-ScaleGS3: .dw 268
-ScaleA3:  .dw 253
-ScaleAS3: .dw 239
-ScaleB3:  .dw 226
-ScaleC4:  .dw 213
-ScaleCS4: .dw 201
-ScaleD4:  .dw 189
-ScaleDS4: .dw 179
-ScaleE4:  .dw 169
-ScaleF:   .dw 159
-ScaleFS4: .dw 150
-ScaleG4:  .dw 142
-ScaleGS4: .dw 134
-ScaleA4:  .dw 126
-ScaleAS4: .dw 119
-ScaleB4:  .dw 112
-ScaleC5:  .dw 106
-ScaleCS5: .dw 100
-ScaleD5:  .dw 94
-ScaleDS5: .dw 89
-ScaleE5:  .dw 84
-ScaleF5:  .dw 79
-ScaleFS5: .dw 75
-ScaleG5:  .dw 70
-ScaleGS5: .dw 66
-ScaleA5:  .dw 63
-ScaleAS5: .dw 59
-ScaleB5:  .dw 56
-ScaleC6:  .dw 52
-ScaleCS6: .dw 49
-ScaleD6:  .dw 47
-ScaleDS6: .dw 44
-ScaleE6:  .dw 41
-ScaleF6:  .dw 39
-ScaleFS6: .dw 37
-ScaleG6:  .dw 35
-ScaleGS6: .dw 33
-ScaleA6:  .dw 31
-ScaleAS6: .dw 29
-ScaleB6:  .dw 27
-ScaleC7:  .dw 26
-ScaleCS7: .dw 24
-ScaleD7:  .dw 23
-ScaleDS7: .dw 21
-ScaleE7:  .dw 20
-ScaleF7:  .dw 19
-ScaleFS7: .dw 18
-ScaleG7:  .dw 17
-ScaleGS7: .dw 16
-ScaleA7:  .dw 15
-ScaleAS7: .dw 14
-ScaleB7:  .dw 13
-ScaleC8:  .dw 12
+Notes:  .dw 6821, 6429, 6079, 5766, 5430, 5131, 4821, 4584, 4302, 4052, 3830, 3631, 3410, 3232, 3039, 2882, 2714, 2565, 2421, 2282, 2150, 2033, 1921, 1809, 1710, 1616, 1523, 1437, 1357, 1279, 1210, 1141, 1077, 1016, 0958, 0906, 0854, 0806, 0761, 0718, 0678, 0640, 0604, 0570, 0538, 0508, 0479, 0452, 0427, 0403, 0380, 0358, 0338, 0319, 0301, 0284, 0268, 0253, 0239, 0226, 0213, 0201, 0189, 0179, 0169, 0159, 0150, 0142, 0134, 0126, 0119, 0112, 0106, 0100, 0094, 0089, 0084, 0079, 0075, 0070, 0066, 0063, 0059, 0056, 0052, 0049, 0047, 0044, 0041, 0039, 0037, 0035, 0033, 0031, 0029, 0027, 0026, 0024, 0023, 0021, 0020, 0019, 0018, 0017, 0016, 0015, 0014, 0013, 0012, 0012, 0011, 0010, 0010, 0009, 0008, 0008, 0007, 0007, 0006, 0006, 0006, 0005, 0005, 0005, 0004, 0004, 0004, 0003
 
 Title:  .incbin "title.nam"
 
