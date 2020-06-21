@@ -9,8 +9,10 @@ bgBufferLength .equ $40
 bgBufferIndex   .rs $01
 titleAddress    .rs $02
 titlePpuAddress .rs $02
-soundAddress    .rs $02
-soundTimer      .rs $01
+soundCh1Address    .rs $02
+soundCh1Timer      .rs $01
+soundCh2Address    .rs $02
+soundCh2Timer      .rs $01
 
   .rsset $0300
 bgBuffer .rs bgBufferLength
@@ -40,9 +42,6 @@ InitializeMemory:
   sta $2000
   lda #%00011000
   sta $2001
-
-  lda #%00000111
-  sta $4015
 
   ldx #$00
   lda #$3f
@@ -115,12 +114,21 @@ LoadTitle:
   cmp #high(Title + $0400)
   bne LoadTitleWait
 
-  lda PineappleRag
-  sta soundTimer
-  lda #low(PineappleRag + 1)
-  sta soundAddress
-  lda #high(PineappleRag + 1)
-  sta soundAddress + 1
+  lda #%00011111
+  sta $4015
+
+  lda PineappleRagCh1
+  sta soundCh1Timer
+  lda #low(PineappleRagCh1 + 1)
+  sta soundCh1Address
+  lda #high(PineappleRagCh1 + 1)
+  sta soundCh1Address + 1
+  lda PineappleRagCh2
+  sta soundCh2Timer
+  lda #low(PineappleRagCh2 + 1)
+  sta soundCh2Address
+  lda #high(PineappleRagCh2 + 1)
+  sta soundCh2Address + 1
 
 Wait:
   jmp Wait
@@ -156,13 +164,14 @@ WritePpuBreak:
   sta $2005
   sta $2005
 
-PlaySound:
-  lda soundTimer
-  bne PlaySoundBreak
+PlaySoundCh1:
+  lda soundCh1Timer
+  bne PlaySoundCh1Break
   ldy #$00
-  lda [soundAddress],y
+  lda [soundCh1Address],y
   iny
   asl a
+  beq PlaySoundCh1Break
   tax
   lda #%10000110
   sta $4000
@@ -173,19 +182,51 @@ PlaySound:
   lda Notes + 1,x
   ora #%00001000
   sta $4003
-  lda [soundAddress],y
+  lda [soundCh1Address],y
   iny
-  sta soundTimer
+  sta soundCh1Timer
   tya
   clc
-  adc soundAddress
-  sta soundAddress
-  lda soundAddress + 1
+  adc soundCh1Address
+  sta soundCh1Address
+  lda soundCh1Address + 1
   adc #$00
-  sta soundAddress + 1
-  jmp PlaySound
-PlaySoundBreak:
-  dec soundTimer
+  sta soundCh1Address + 1
+  jmp PlaySoundCh1
+PlaySoundCh1Break:
+  dec soundCh1Timer
+
+PlaySoundCh2:
+  lda soundCh2Timer
+  bne PlaySoundCh2Break
+  ldy #$00
+  lda [soundCh2Address],y
+  iny
+  asl a
+  beq PlaySoundCh2Break
+  tax
+  lda #%10000110
+  sta $4004
+  lda #%00000000
+  sta $4005
+  lda Notes,x
+  sta $4006
+  lda Notes + 1,x
+  ora #%00001000
+  sta $4007
+  lda [soundCh2Address],y
+  iny
+  sta soundCh2Timer
+  tya
+  clc
+  adc soundCh2Address
+  sta soundCh2Address
+  lda soundCh2Address + 1
+  adc #$00
+  sta soundCh2Address + 1
+  jmp PlaySoundCh2
+PlaySoundCh2Break:
+  dec soundCh2Timer
 
   ; TODO: レジスタ復帰
   rti
@@ -202,292 +243,72 @@ Notes:
 
 Palette:  .incbin "palette.dat"
 
-PineappleRag:
+PineappleRagCh1:
   .db 0, 67
-  .db 8, 67
-  .db 1, 65
-  .db 17, 65
-  .db 2, 63
-  .db 8, 63
-  .db 1, 62
-  .db 10, 62
-  .db 0, 61
+  .db 10, 65
+  .db 19, 63
+  .db 9, 62
   .db 10, 61
-  .db 0, 62
   .db 10, 62
-  .db 0, 60
-  .db 8, 60
-  .db 1, 58
+  .db 9, 60
   .db 10, 58
-  .db 0, 60
-  .db 10, 60
-  .db 0, 62
+  .db 9, 60
   .db 10, 62
-  .db 0, 65
-  .db 43, 65
-  .db 5, 67
-  .db 8, 67
-  .db 1, 67
-  .db 17, 67
-  .db 2, 66
-  .db 8, 66
-  .db 1, 67
+  .db 10, 65
+  .db 48, 67
+  .db 9, 67
+  .db 19, 66
   .db 10, 67
-  .db 0, 69
   .db 10, 69
-  .db 0, 70
-  .db 17, 70
-  .db 2, 72
-  .db 17, 72
-  .db 2, 65
-  .db 36, 65
-  .db 2, 65
-  .db 17, 65
-  .db 2, 7
-  .db 0, 79
-  .db 0, 74
-  .db 0, 70
-  .db 8, 79
-  .db 0, 74
-  .db 0, 70
-  .db 1, 77
-  .db 17, 77
-  .db 2, 75
-  .db 8, 75
-  .db 1, 74
+  .db 9, 70
+  .db 19, 72
+  .db 20, 65
+  .db 38, 65
+  .db 19, 70
+  .db 10, 77
+  .db 19, 75
   .db 10, 74
-  .db 0, 73
-  .db 10, 73
-  .db 0, 74
+  .db 9, 73
   .db 10, 74
-  .db 0, 72
-  .db 8, 72
-  .db 1, 70
+  .db 9, 72
   .db 10, 70
-  .db 0, 72
   .db 10, 72
-  .db 0, 74
-  .db 10, 74
-  .db 0, 77
-  .db 18, 77
-  .db 1, 82
-  .db 8, 82
-  .db 1, 77
-  .db 0, 86
-  .db 17, 77
-  .db 0, 86
-  .db 2, 70
-  .db 0, 74
-  .db 0, 79
-  .db 8, 70
-  .db 0, 74
-  .db 0, 79
-  .db 1, 77
-  .db 17, 77
-  .db 2, 75
-  .db 8, 75
-  .db 1, 74
-  .db 10, 74
-  .db 0, 73
-  .db 10, 73
-  .db 0, 74
-  .db 10, 74
-  .db 0, 75
-  .db 8, 75
-  .db 1, 7
-  .db 0, 77
-  .db 0, 74
-  .db 0, 70
-  .db 17, 77
-  .db 0, 74
-  .db 0, 70
-  .db 0, 7
-  .db 2, 7
-  .db 0, 70
-  .db 0, 77
-  .db 10, 70
-  .db 0, 77
-  .db 0, 7
-  .db 0, 74
-  .db 8, 74
-  .db 0, 7
-  .db 1, 7
-  .db 0, 70
-  .db 0, 77
-  .db 10, 70
-  .db 0, 77
-  .db 0, 7
-  .db 0, 74
-  .db 10, 74
-  .db 0, 7
-  .db 0, 77
-  .db 0, 70
-  .db 17, 77
-  .db 0, 70
-  .db 2, 7
-  .db 0, 70
-  .db 10, 70
-  .db 0, 75
-  .db 0, 82
-  .db 17, 75
-  .db 0, 82
-  .db 2, 70
-  .db 10, 70
-  .db 0, 75
-  .db 0, 82
-  .db 17, 75
-  .db 0, 82
-  .db 2, 70
-  .db 10, 70
-  .db 0, 75
-  .db 0, 82
-  .db 18, 75
-  .db 0, 82
-  .db 1, 86
+  .db 9, 74
+  .db 10, 77
+  .db 19, 82
   .db 10, 86
-  .db 0, 82
-  .db 10, 82
-  .db 0, 74
-  .db 8, 74
-  .db 1, 77
-  .db 0, 70
-  .db 10, 77
-  .db 0, 76
-  .db 10, 76
-  .db 0, 77
-  .db 10, 77
-  .db 0, 79
-  .db 5, 70
-  .db 4, 79
-  .db 1, 81
-  .db 10, 81
-  .db 0, 72
-  .db 0, 77
-  .db 17, 72
-  .db 0, 77
-  .db 2, 81
-  .db 10, 81
-  .db 0, 70
-  .db 0, 76
-  .db 0, 79
-  .db 17, 70
-  .db 0, 76
-  .db 0, 79
-  .db 2, 81
-  .db 0, 76
-  .db 0, 70
-  .db 8, 81
-  .db 0, 76
-  .db 0, 70
-  .db 1, 69
-  .db 0, 77
-  .db 26, 69
-  .db 0, 77
-  .db 2, 69
-  .db 10, 69
-  .db 0, 70
-  .db 10, 70
-  .db 0, 72
-  .db 10, 72
-  .db 0, 74
-  .db 10, 74
-  .db 0, 75
+  .db 19, 79
+  .db 9, 77
+  .db 20, 75
+  .db 9, 74
+  .db 10, 73
+  .db 9, 74
   .db 10, 75
-  .db 0, 77
-  .db 8, 77
-  .db 1, 7
-  .db 0, 79
-  .db 0, 74
-  .db 0, 70
-  .db 8, 79
-  .db 0, 74
-  .db 0, 70
-  .db 1, 77
-  .db 17, 77
-  .db 2, 75
-  .db 8, 75
-  .db 1, 74
-  .db 10, 74
-  .db 0, 73
-  .db 10, 73
-  .db 0, 74
-  .db 10, 74
-  .db 0, 72
-  .db 8, 72
-  .db 1, 70
   .db 10, 70
-  .db 0, 72
-  .db 10, 72
-  .db 0, 74
+  .db 19, 77
+  .db 9, 74
+  .db 10, 77
   .db 10, 74
-  .db 0, 77
-  .db 18, 77
-  .db 1, 82
-  .db 8, 82
-  .db 1, 86
-  .db 0, 77
-  .db 17, 86
-  .db 0, 77
-  .db 2, 70
-  .db 0, 74
-  .db 0, 79
-  .db 8, 70
-  .db 0, 74
-  .db 0, 79
-  .db 1, 77
-  .db 17, 77
-  .db 2, 75
-  .db 8, 75
-  .db 1, 74
-  .db 10, 74
-  .db 0, 73
-  .db 10, 73
-  .db 0, 74
-  .db 10, 74
-  .db 0, 75
-  .db 8, 75
-  .db 1, 70
-  .db 0, 74
-  .db 0, 77
-  .db 17, 70
-  .db 0, 74
-  .db 0, 77
-  .db 2, 77
-  .db 0, 70
-  .db 8, 77
-  .db 0, 70
-  .db 1, 74
-  .db 8, 74
-  .db 1, 70
-  .db 0, 77
-  .db 10, 70
-  .db 0, 77
-  .db 0, 74
-  .db 10, 74
-  .db 0, 70
-  .db 0, 77
-  .db 17, 70
-  .db 0, 77
-  .db 2, 7
-  .db 0, 70
-  .db 10, 70
-  .db 0, 75
-  .db 0, 82
-  .db 17, 75
-  .db 0, 82
-  .db 2, 70
-  .db 10, 70
-  .db 0, 82
-  .db 0, 75
-  .db 17, 82
-  .db 0, 75
-  .db 2, 70
-  .db 10, 70
-  .db 0, 75
-  .db 0, 82
-  .db 18, 75
-  .db 0, 82
-  .db 1, 86
+  .db 9, 70
+  .db 0, 0
+
+PineappleRagCh2:
+  .db 255, 255
+  .db 33, 255
+  .db 19, 46
+  .db 19, 62
+  .db 20, 41
+  .db 19, 53
+  .db 19, 46
+  .db 19, 62
+  .db 19, 41
+  .db 20, 62
+  .db 19, 46
+  .db 19, 62
+  .db 19, 41
+  .db 19, 53
+  .db 20, 46
+  .db 0, 0
 
 Title:  .incbin "title.nam"
 
