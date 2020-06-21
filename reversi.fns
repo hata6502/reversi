@@ -1,15 +1,18 @@
 ; reversi.asm
-Notes                            = $C214
-WritePpu                         = $C0DF
+Notes                            = $C14A
+WritePpu                         = $C0D5
 LoadTitleWait                    = $C068
 Start                            = $C000
-WritePpuData                     = $C0F6
+WritePpuData                     = $C0EC
 InitializeMemory                 = $C008
-Title                            = $C314
+Title                            = $C584
 LoadPalette                      = $C045
-WritePpuDataBreak                = $C105
-Palette                          = $C114
-WritePpuBreak                    = $C108
-VBlank                           = $C0DD
-Wait                             = $C0DA
+WritePpuDataBreak                = $C0FB
+PlaySoundBreak                   = $C146
+Palette                          = $C24A
+PineappleRag                     = $C34A
+WritePpuBreak                    = $C0FE
+VBlank                           = $C0D3
+Wait                             = $C0D0
 LoadTitle                        = $C084
+PlaySound                        = $C109
