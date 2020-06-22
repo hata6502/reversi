@@ -3,16 +3,28 @@
   .inesmir 0
   .inesmap 0
 
-bgBufferLength .equ $40
+bgBufferLength    .equ $40
+controllerA       .equ $80
+controllerB       .equ $40
+controllerDown    .equ $04
+controllerLeft    .equ $02
+controllerRight   .equ $01
+controllerSelect  .equ $20
+controllerStart   .equ $10
+controllerUp      .equ $08
 
   .rsset $00
-bgBufferIndex   .rs $01
-titleAddress    .rs $02
-titlePpuAddress .rs $02
-soundCh1Address    .rs $02
-soundCh1Timer      .rs $01
-soundCh2Address    .rs $02
-soundCh2Timer      .rs $01
+bgBufferIndex         .rs $01
+controller1           .rs $01
+controller1Prev       .rs $01
+controller1RisingEdge .rs $01
+soundCh1Address       .rs $02
+soundCh1Timer         .rs $01
+soundCh2Address       .rs $02
+soundCh2Timer         .rs $01
+titleAddress          .rs $02
+titlePpuAddress       .rs $02
+frameProceeded        .rs $01
 
   .rsset $0300
 bgBuffer .rs bgBufferLength
@@ -22,21 +34,36 @@ bgBuffer .rs bgBufferLength
 Start:
   sei
   cld
+  lda #$40
+  sta $4017
   ldx #$ff
   txs
+  lda #$00
+  sta $2000
+  sta $2001
+  sta $4010
+
+  bit $2002
+initializeVBlank1Loop:
+  bit $2002
+  bpl initializeVBlank1Loop
 
   lda #$00
-  tax
-InitializeMemory:
+initializeMemoryLoop:
   sta $00,x
-  sta $200,x
-  sta $300,x
-  sta $400,x
-  sta $500,x
-  sta $600,x
-  sta $700,x
+  sta $0100,x
+  sta $0200,x
+  sta $0300,x
+  sta $0400,x
+  sta $0500,x
+  sta $0600,x
+  sta $0700,x
   inx
-  bne InitializeMemory
+  bne initializeMemoryLoop
+
+initializeVBlank2Loop:
+  bit $2002
+  bpl initializeVBlank2Loop
 
   lda #%10000000
   sta $2000
@@ -54,13 +81,13 @@ InitializeMemory:
   sta bgBuffer,x
   inx
   ldy #$00
-LoadPalette:
+LoadPaletteLoop:
   lda Palette,y
   iny
   sta bgBuffer,x
   inx
   cpy #$20
-  bne LoadPalette
+  bne LoadPaletteLoop
   stx bgBufferIndex
 
   lda #$00
@@ -71,9 +98,11 @@ LoadPalette:
   sta titleAddress
   lda #high(Title)
   sta titleAddress + 1
-LoadTitleWait:
+LoadTitleLoop:
+  lda #$01
+  sta frameProceeded
   lda bgBufferIndex
-  bne LoadTitleWait
+  bne LoadTitleLoop
   tax
   lda titlePpuAddress + 1
   sta bgBuffer,x
@@ -85,13 +114,13 @@ LoadTitleWait:
   sta bgBuffer,x
   inx
   ldy #$00
-LoadTitle:
+LoadTitleWriteLoop:
   lda [titleAddress],y
   iny
   sta bgBuffer,x
   inx
   cpy #$20
-  bne LoadTitle
+  bne LoadTitleWriteLoop
   tya
   clc
   adc titlePpuAddress
@@ -109,13 +138,10 @@ LoadTitle:
   stx bgBufferIndex
   lda titleAddress
   cmp #low(Title + $0400)
-  bne LoadTitleWait
+  bne LoadTitleLoop
   lda titleAddress + 1
   cmp #high(Title + $0400)
-  bne LoadTitleWait
-
-  lda #%00011111
-  sta $4015
+  bne LoadTitleLoop
 
   lda PineappleRagCh1
   sta soundCh1Timer
@@ -130,14 +156,72 @@ LoadTitle:
   lda #high(PineappleRagCh2 + 1)
   sta soundCh2Address + 1
 
-Wait:
-  jmp Wait
+  lda #%00011111
+  sta $4015
+
+WaitLoop:
+  lda frameProceeded
+  bne WaitLoop
+
+  lda controller1
+  and #controllerStart
+  beq controllerTestSkip
+  brk
+controllerTestSkip:
+
+  lda #$01
+  sta frameProceeded
+  jmp WaitLoop
 
 VBlank:
-  ; TODO: レジスタ退避
-  ; TODO: 処理落ち中は BG バッファを処理しない。
+  pha
+  txa
+  pha
+  tya
+  pha
+
+  lda frameProceeded
+  beq readControllerSkip
+  lda controller1
+  sta controller1Prev
+  lda #$01
+  sta $4016
+  lsr a
+  sta $4016
+  lda $4016
+  lsr a
+  rol controller1
+  lda $4016
+  lsr a
+  rol controller1
+  lda $4016
+  lsr a
+  rol controller1
+  lda $4016
+  lsr a
+  rol controller1
+  lda $4016
+  lsr a
+  rol controller1
+  lda $4016
+  lsr a
+  rol controller1
+  lda $4016
+  lsr a
+  rol controller1
+  lda $4016
+  lsr a
+  rol controller1
+  lda controller1Prev
+  eor #$ff
+  and controller1
+  sta controller1RisingEdge
+readControllerSkip:
+
+  lda frameProceeded
+  beq WritePpuSkip
   ldx #$00
-WritePpu:
+WritePpuLoop:
   cpx bgBufferIndex
   beq WritePpuBreak
   lda bgBuffer,x
@@ -148,23 +232,24 @@ WritePpu:
   sta $2006
   ldy bgBuffer,x
   inx
-WritePpuData:
+WritePpuDataLoop:
   cpy #$00
   beq WritePpuDataBreak
   lda bgBuffer,x
   inx
   sta $2007
   dey
-  jmp WritePpuData
+  jmp WritePpuDataLoop
 WritePpuDataBreak:
-  jmp WritePpu
+  jmp WritePpuLoop
 WritePpuBreak:
   lda #$00
   sta bgBufferIndex
   sta $2005
   sta $2005
+WritePpuSkip:
 
-PlaySoundCh1:
+PlaySoundCh1Loop:
   lda soundCh1Timer
   bne PlaySoundCh1Break
   ldy #$00
@@ -192,11 +277,11 @@ PlaySoundCh1:
   lda soundCh1Address + 1
   adc #$00
   sta soundCh1Address + 1
-  jmp PlaySoundCh1
+  jmp PlaySoundCh1Loop
 PlaySoundCh1Break:
   dec soundCh1Timer
 
-PlaySoundCh2:
+PlaySoundCh2Loop:
   lda soundCh2Timer
   bne PlaySoundCh2Break
   ldy #$00
@@ -224,11 +309,17 @@ PlaySoundCh2:
   lda soundCh2Address + 1
   adc #$00
   sta soundCh2Address + 1
-  jmp PlaySoundCh2
+  jmp PlaySoundCh2Loop
 PlaySoundCh2Break:
   dec soundCh2Timer
 
-  ; TODO: レジスタ復帰
+  lda #$00
+  sta frameProceeded
+  pla
+  tay
+  pla
+  tax
+  pla
   rti
 
 Notes:
