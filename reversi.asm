@@ -12,19 +12,22 @@ controllerRight   .equ $01
 controllerSelect  .equ $20
 controllerStart   .equ $10
 controllerUp      .equ $08
+sprite            .equ $0200
 
   .rsset $00
 bgBufferIndex         .rs $01
 controller1           .rs $01
 controller1Prev       .rs $01
 controller1RisingEdge .rs $01
+frameProceeded        .rs $01
+gameMode              .rs $01
 soundCh1Address       .rs $02
 soundCh1Timer         .rs $01
 soundCh2Address       .rs $02
 soundCh2Timer         .rs $01
+spriteIndex           .rs $01
 titleAddress          .rs $02
 titlePpuAddress       .rs $02
-frameProceeded        .rs $01
 
   .rsset $0300
 bgBuffer .rs bgBufferLength
@@ -163,15 +166,56 @@ WaitLoop:
   lda frameProceeded
   bne WaitLoop
 
-  lda controller1
-  and #controllerStart
+  lda controller1RisingEdge
+  and #controllerSelect
   beq controllerTestSkip
-  brk
+  inc gameMode
+  lda gameMode
+  and #$03
+  sta gameMode
 controllerTestSkip:
 
+  ldx spriteIndex
+  lda gameMode
+  asl a
+  asl a
+  asl a
+  asl a
+  clc
+  adc #$76
+  sta sprite,x
+  inx
+  lda #$2a
+  sta sprite,x
+  inx
+  lda #%00000010
+  sta sprite,x
+  inx
+  lda #$44
+  sta sprite,x
+  inx
+  stx spriteIndex
+
+  jsr FinalizeSprite
   lda #$01
   sta frameProceeded
   jmp WaitLoop
+
+FinalizeSprite:
+  ldx spriteIndex
+  lda #$f8
+FinalizeSpriteLoop:
+  cpx #$00
+  beq FinalizeSpriteBreak
+  sta sprite,x
+  inx
+  inx
+  inx
+  inx
+  jmp FinalizeSpriteLoop
+FinalizeSpriteBreak:
+  stx spriteIndex
+  rts
 
 VBlank:
   pha
@@ -181,7 +225,44 @@ VBlank:
   pha
 
   lda frameProceeded
-  beq readControllerSkip
+  bne VBlankFrameProcess
+  jmp VBlankFrameProcessSkip
+VBlankFrameProcess:
+
+  lda #high(sprite)
+  sta $4014
+
+  ldx #$00
+WritePpuLoop:
+  cpx bgBufferIndex
+  beq WritePpuBreak
+  lda bgBuffer,x
+  inx
+  sta $2006
+  lda bgBuffer,x
+  inx
+  sta $2006
+  ldy bgBuffer,x
+  inx
+WritePpuDataLoop:
+  cpy #$00
+  beq WritePpuDataBreak
+  lda bgBuffer,x
+  inx
+  sta $2007
+  dey
+  jmp WritePpuDataLoop
+WritePpuDataBreak:
+  jmp WritePpuLoop
+WritePpuBreak:
+  lda #$00
+  sta bgBufferIndex
+  sta $2005
+  sta $2005
+
+  lda #$04
+  sta spriteIndex
+
   lda controller1
   sta controller1Prev
   lda #$01
@@ -216,38 +297,8 @@ VBlank:
   eor #$ff
   and controller1
   sta controller1RisingEdge
-readControllerSkip:
 
-  lda frameProceeded
-  beq WritePpuSkip
-  ldx #$00
-WritePpuLoop:
-  cpx bgBufferIndex
-  beq WritePpuBreak
-  lda bgBuffer,x
-  inx
-  sta $2006
-  lda bgBuffer,x
-  inx
-  sta $2006
-  ldy bgBuffer,x
-  inx
-WritePpuDataLoop:
-  cpy #$00
-  beq WritePpuDataBreak
-  lda bgBuffer,x
-  inx
-  sta $2007
-  dey
-  jmp WritePpuDataLoop
-WritePpuDataBreak:
-  jmp WritePpuLoop
-WritePpuBreak:
-  lda #$00
-  sta bgBufferIndex
-  sta $2005
-  sta $2005
-WritePpuSkip:
+VBlankFrameProcessSkip:
 
 PlaySoundCh1Loop:
   lda soundCh1Timer
