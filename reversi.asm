@@ -52,6 +52,7 @@ initializeVBlank1Loop:
   bpl initializeVBlank1Loop
 
   lda #$00
+  tax
 initializeMemoryLoop:
   sta $00,x
   sta $0100,x
