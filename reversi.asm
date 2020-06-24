@@ -28,6 +28,9 @@ soundCh1Timer         .rs $01
 soundCh2Address       .rs $02
 soundCh2Timer         .rs $01
 spriteIndex           .rs $01
+stoneX                .rs $01
+stoneY                .rs $01
+stoneChar             .rs $01
 titleAddress          .rs $02
 
   .rsset $0300
@@ -226,7 +229,7 @@ TitleBreak:
   sta ppuAddress
   lda #$20
   sta ppuAddress + 1
-LoadGameLoop:
+ClearTitleLoop:
   jsr WaitFrameProceeded
   ldx #$00
   lda ppuAddress + 1
@@ -239,11 +242,11 @@ LoadGameLoop:
   sta bgBuffer,x
   inx
   lda #$00
-LoadGameWriteLoop:
+ClearTitleWriteLoop:
   sta bgBuffer,x
   inx
   cpx #$20 + 3
-  bne LoadGameWriteLoop
+  bne ClearTitleWriteLoop
   stx bgBufferIndex
   lda ppuAddress
   clc
@@ -253,7 +256,82 @@ LoadGameWriteLoop:
   adc #$00
   sta ppuAddress + 1
   cmp #$24
-  bne LoadGameLoop
+  bne ClearTitleLoop
+
+  lda #$62
+  sta ppuAddress
+  lda #$20
+  sta ppuAddress + 1
+  lda #$00
+  sta stoneY
+  lda #$a3
+  sta stoneChar
+WriteStoneYLoop:
+  lda #$00
+  sta stoneX
+WriteStoneXLoop:
+
+  jsr WaitFrameProceeded
+  ldx #$00
+  ldy #$00
+WriteStoneLoop:
+  lda ppuAddress + 1
+  sta bgBuffer,x
+  inx
+  tya
+  asl a
+  asl a
+  asl a
+  asl a
+  pha
+  asl a
+  clc
+  adc ppuAddress
+  sta bgBuffer,x
+  inx
+  lda #3
+  sta bgBuffer,x
+  inx
+  pla
+  clc
+  adc stoneChar
+  sta bgBuffer,x
+  inx
+  clc
+  adc #$01
+  sta bgBuffer,x
+  inx
+  clc
+  adc #$01
+  sta bgBuffer,x
+  inx
+  iny
+  cpy #3
+  bne WriteStoneLoop
+  stx bgBufferIndex
+
+  lda ppuAddress
+  clc
+  adc #3
+  sta ppuAddress
+  lda ppuAddress + 1
+  adc #0
+  sta ppuAddress + 1
+  inc stoneX
+  lda stoneX
+  cmp #8
+  bne WriteStoneXLoop
+  lda ppuAddress
+  clc
+  adc #$48
+  sta ppuAddress
+  lda ppuAddress + 1
+  adc #0
+  sta ppuAddress + 1
+  inc stoneY
+  lda stoneY
+  cmp #8
+  bne WriteStoneYLoop
 
   jsr WaitFrameProceeded
   ldx #$00
@@ -263,7 +341,7 @@ LoadGameWriteLoop:
   lda #$41
   sta bgBuffer,x
   inx
-  lda #24
+  lda #25
   sta bgBuffer,x
   inx
   lda #$a9
@@ -273,12 +351,12 @@ LoadGameWriteLoop:
 LoadGameWriteTopBorderLoop:
   sta bgBuffer,x
   inx
-  cpx #24 + 3
+  cpx #25 + 3
   bne LoadGameWriteTopBorderLoop
   lda #$23
   sta bgBuffer,x
   inx
-  lda #$41
+  lda #$61
   sta bgBuffer,x
   inx
   lda #25
@@ -288,7 +366,7 @@ LoadGameWriteTopBorderLoop:
 LoadGameWriteBottomBorderLoop:
   sta bgBuffer,x
   inx
-  cpx #24 + 3 + 25 + 3
+  cpx #25 + 3 + 25 + 3
   bne LoadGameWriteBottomBorderLoop
   stx bgBufferIndex
 
@@ -300,29 +378,29 @@ LoadGameWriteBottomBorderLoop:
   lda #$61
   sta bgBuffer,x
   inx
-  lda #23 + %10000000
+  lda #24 + %10000000
   sta bgBuffer,x
   inx
   lda #$b9
 LoadGameWriteLeftBorderLoop:
   sta bgBuffer,x
   inx
-  cpx #23 + 3
+  cpx #24 + 3
   bne LoadGameWriteLeftBorderLoop
   lda #$20
   sta bgBuffer,x
   inx
-  lda #$59
+  lda #$5a
   sta bgBuffer,x
   inx
-  lda #24 + %10000000
+  lda #26 + %10000000
   sta bgBuffer,x
   inx
   lda #$ba
 LoadGameWriteRightBorderLoop:
   sta bgBuffer,x
   inx
-  cpx #23 + 3 + 24 + 3
+  cpx #24 + 3 + 26 + 3
   bne LoadGameWriteRightBorderLoop
   stx bgBufferIndex
 
@@ -447,7 +525,6 @@ WritePpuBreak:
   eor #$ff
   and controller1
   sta controller1RisingEdge
-
 VBlankFrameProcessSkip:
 
 PlaySoundCh1Loop:
