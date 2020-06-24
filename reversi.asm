@@ -3,7 +3,6 @@
   .inesmir 0
   .inesmap 0
 
-bgBufferLength    .equ $40
 controllerA       .equ $80
 controllerB       .equ $40
 controllerDown    .equ $04
@@ -21,16 +20,16 @@ controller1Prev       .rs $01
 controller1RisingEdge .rs $01
 frameProceeded        .rs $01
 gameMode              .rs $01
+ppuAddress            .rs $02
 soundCh1Address       .rs $02
 soundCh1Timer         .rs $01
 soundCh2Address       .rs $02
 soundCh2Timer         .rs $01
 spriteIndex           .rs $01
 titleAddress          .rs $02
-titlePpuAddress       .rs $02
 
   .rsset $0300
-bgBuffer .rs bgBufferLength
+bgBuffer .rs $40
 
   .bank 0
   .org $c000
@@ -95,23 +94,20 @@ LoadPaletteLoop:
   stx bgBufferIndex
 
   lda #$00
-  sta titlePpuAddress
+  sta ppuAddress
   lda #$20
-  sta titlePpuAddress + 1
+  sta ppuAddress + 1
   lda #low(Title)
   sta titleAddress
   lda #high(Title)
   sta titleAddress + 1
 LoadTitleLoop:
-  lda #$01
-  sta frameProceeded
-  lda bgBufferIndex
-  bne LoadTitleLoop
-  tax
-  lda titlePpuAddress + 1
+  jsr WaitFrameProceeded
+  ldx #$00
+  lda ppuAddress + 1
   sta bgBuffer,x
   inx
-  lda titlePpuAddress
+  lda ppuAddress
   sta bgBuffer,x
   inx
   lda #$20
@@ -127,11 +123,11 @@ LoadTitleWriteLoop:
   bne LoadTitleWriteLoop
   tya
   clc
-  adc titlePpuAddress
-  sta titlePpuAddress
-  lda titlePpuAddress + 1
+  adc ppuAddress
+  sta ppuAddress
+  lda ppuAddress + 1
   adc #$00
-  sta titlePpuAddress + 1
+  sta ppuAddress + 1
   tya
   clc
   adc titleAddress
@@ -163,9 +159,13 @@ LoadTitleWriteLoop:
   lda #%00011111
   sta $4015
 
-WaitLoop:
+TitleLoop:
   lda frameProceeded
-  bne WaitLoop
+  bne TitleLoop
+
+  lda controller1RisingEdge
+  and #controllerStart
+  bne TitleBreak
 
   lda controller1RisingEdge
   and #controllerSelect
@@ -200,6 +200,67 @@ controllerTestSkip:
   jsr FinalizeSprite
   lda #$01
   sta frameProceeded
+  jmp TitleLoop
+TitleBreak:
+
+  jsr FinalizeSprite
+
+  lda #$00
+  sta ppuAddress
+  lda #$20
+  sta ppuAddress + 1
+LoadGameLoop:
+  jsr WaitFrameProceeded
+  ldx #$00
+  lda ppuAddress + 1
+  sta bgBuffer,x
+  inx
+  lda ppuAddress
+  sta bgBuffer,x
+  inx
+  lda #$20
+  sta bgBuffer,x
+  inx
+  lda #$00
+LoadGameWriteLoop:
+  sta bgBuffer,x
+  inx
+  cpx #$20 + 3
+  bne LoadGameWriteLoop
+  stx bgBufferIndex
+  lda ppuAddress
+  clc
+  adc #$20
+  sta ppuAddress
+  lda ppuAddress + 1
+  adc #$00
+  sta ppuAddress + 1
+  cmp #$24
+  bne LoadGameLoop
+
+  jsr WaitFrameProceeded
+  ldx #$00
+  lda #$20
+  sta bgBuffer,x
+  inx
+  lda #$41
+  sta bgBuffer,x
+  inx
+  lda #24
+  sta bgBuffer,x
+  inx
+  lda #$a9
+  sta bgBuffer,x
+  inx
+  lda #$aa
+LoadGameWriteBorderLoop:
+  sta bgBuffer,x
+  inx
+  cpx #24 + 3
+  bne LoadGameWriteBorderLoop
+  stx bgBufferIndex
+
+WaitLoop:
   jmp WaitLoop
 
 FinalizeSprite:
@@ -216,6 +277,13 @@ FinalizeSpriteLoop:
   jmp FinalizeSpriteLoop
 FinalizeSpriteBreak:
   stx spriteIndex
+  rts
+
+WaitFrameProceeded:
+  lda #$01
+  sta frameProceeded
+  lda bgBufferIndex
+  bne WaitFrameProceeded
   rts
 
 VBlank:
