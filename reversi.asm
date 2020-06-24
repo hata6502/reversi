@@ -21,6 +21,8 @@ controller1RisingEdge .rs $01
 frameProceeded        .rs $01
 gameMode              .rs $01
 ppuAddress            .rs $02
+ppuControl1           .rs $01
+ppuControl2           .rs $01
 soundCh1Address       .rs $02
 soundCh1Timer         .rs $01
 soundCh2Address       .rs $02
@@ -70,8 +72,10 @@ initializeVBlank2Loop:
 
   lda #%10000000
   sta $2000
+  sta ppuControl1
   lda #%00011000
   sta $2001
+  sta ppuControl2
 
   ldx #$00
   lda #$3f
@@ -203,6 +207,19 @@ controllerTestSkip:
   jmp TitleLoop
 TitleBreak:
 
+  lda NoSound
+  sta soundCh1Timer
+  lda #low(NoSound + 1)
+  sta soundCh1Address
+  lda #high(NoSound + 1)
+  sta soundCh1Address + 1
+  lda NoSound
+  sta soundCh2Timer
+  lda #low(NoSound + 1)
+  sta soundCh2Address
+  lda #high(NoSound + 1)
+  sta soundCh2Address + 1
+
   jsr FinalizeSprite
 
   lda #$00
@@ -253,14 +270,65 @@ LoadGameWriteLoop:
   sta bgBuffer,x
   inx
   lda #$aa
-LoadGameWriteBorderLoop:
+LoadGameWriteTopBorderLoop:
   sta bgBuffer,x
   inx
   cpx #24 + 3
-  bne LoadGameWriteBorderLoop
+  bne LoadGameWriteTopBorderLoop
+  lda #$23
+  sta bgBuffer,x
+  inx
+  lda #$41
+  sta bgBuffer,x
+  inx
+  lda #25
+  sta bgBuffer,x
+  inx
+  lda #$ba
+LoadGameWriteBottomBorderLoop:
+  sta bgBuffer,x
+  inx
+  cpx #24 + 3 + 25 + 3
+  bne LoadGameWriteBottomBorderLoop
+  stx bgBufferIndex
+
+  jsr WaitFrameProceeded
+  ldx #$00
+  lda #$20
+  sta bgBuffer,x
+  inx
+  lda #$61
+  sta bgBuffer,x
+  inx
+  lda #23 + %10000000
+  sta bgBuffer,x
+  inx
+  lda #$b9
+LoadGameWriteLeftBorderLoop:
+  sta bgBuffer,x
+  inx
+  cpx #23 + 3
+  bne LoadGameWriteLeftBorderLoop
+  lda #$20
+  sta bgBuffer,x
+  inx
+  lda #$59
+  sta bgBuffer,x
+  inx
+  lda #24 + %10000000
+  sta bgBuffer,x
+  inx
+  lda #$ba
+LoadGameWriteRightBorderLoop:
+  sta bgBuffer,x
+  inx
+  cpx #23 + 3 + 24 + 3
+  bne LoadGameWriteRightBorderLoop
   stx bgBufferIndex
 
 WaitLoop:
+  lda #$01
+  sta frameProceeded
   jmp WaitLoop
 
 FinalizeSprite:
@@ -311,7 +379,20 @@ WritePpuLoop:
   lda bgBuffer,x
   inx
   sta $2006
-  ldy bgBuffer,x
+  lda bgBuffer,x
+  bpl WritePpuHorizontal
+  lda ppuControl1
+  ora #%00000100
+  jmp WritePpuDirection
+WritePpuHorizontal:
+  lda ppuControl1
+  and #%11111011
+WritePpuDirection:
+  sta $2000
+  sta ppuControl1
+  lda bgBuffer,x
+  and #%01111111
+  tay
   inx
 WritePpuDataLoop:
   cpy #$00
@@ -453,6 +534,9 @@ Notes:
   .dw 0010, 0009, 0008, 0008, 0007, 0007, 0006, 0006, 0006, 0005, 0005, 0005, 0004, 0004, 0004, 0003
 
 Palette:  .incbin "palette.dat"
+
+NoSound:
+  .db 0, 0
 
 PineappleRagCh1:
   .db 0, 67
