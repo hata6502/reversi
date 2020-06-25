@@ -264,52 +264,19 @@ ClearTitleWriteLoop:
   sta ppuAddress + 1
   lda #$00
   sta stoneY
-  lda #$a3
+  lda #$a0
   sta stoneChar
 WriteStoneYLoop:
   lda #$00
   sta stoneX
 WriteStoneXLoop:
-
+  lda stoneX
+  and #%00000011
+  bne WriteStoneWaitSkip
   jsr WaitFrameProceeded
   ldx #$00
-  ldy #$00
-WriteStoneLoop:
-  lda ppuAddress + 1
-  sta bgBuffer,x
-  inx
-  tya
-  asl a
-  asl a
-  asl a
-  asl a
-  pha
-  asl a
-  clc
-  adc ppuAddress
-  sta bgBuffer,x
-  inx
-  lda #3
-  sta bgBuffer,x
-  inx
-  pla
-  clc
-  adc stoneChar
-  sta bgBuffer,x
-  inx
-  clc
-  adc #$01
-  sta bgBuffer,x
-  inx
-  clc
-  adc #$01
-  sta bgBuffer,x
-  inx
-  iny
-  cpy #3
-  bne WriteStoneLoop
-  stx bgBufferIndex
-
+WriteStoneWaitSkip:
+  jsr WriteStone
   lda ppuAddress
   clc
   adc #3
@@ -430,6 +397,39 @@ WaitFrameProceeded:
   sta frameProceeded
   lda bgBufferIndex
   bne WaitFrameProceeded
+  rts
+
+WriteStone:
+  ldy #$00
+WriteStoneLoop:
+  lda ppuAddress + 1
+  sta bgBuffer,x
+  inx
+  tya
+  clc
+  adc ppuAddress
+  sta bgBuffer,x
+  inx
+  lda #3 + %10000000
+  sta bgBuffer,x
+  inx
+  tya
+  clc
+  adc stoneChar
+  sta bgBuffer,x
+  inx
+  clc
+  adc #$10
+  sta bgBuffer,x
+  inx
+  clc
+  adc #$10
+  sta bgBuffer,x
+  inx
+  iny
+  cpy #3
+  bne WriteStoneLoop
+  stx bgBufferIndex
   rts
 
 VBlank:
