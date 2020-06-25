@@ -167,8 +167,7 @@ LoadTitleWriteLoop:
   sta $4015
 
 TitleLoop:
-  lda frameProceeded
-  bne TitleLoop
+  jsr WaitFrameProceeded
 
   lda controller1RisingEdge
   and #controllerStart
@@ -205,8 +204,6 @@ controllerTestSkip:
   stx spriteIndex
 
   jsr FinalizeSprite
-  lda #$01
-  sta frameProceeded
   jmp TitleLoop
 TitleBreak:
 
@@ -258,10 +255,6 @@ ClearTitleWriteLoop:
   cmp #$24
   bne ClearTitleLoop
 
-  lda #$62
-  sta ppuAddress
-  lda #$20
-  sta ppuAddress + 1
   lda #$00
   sta stoneY
   lda #$a0
@@ -274,27 +267,12 @@ WriteStoneXLoop:
   and #%00000011
   bne WriteStoneWaitSkip
   jsr WaitFrameProceeded
-  ldx #$00
 WriteStoneWaitSkip:
   jsr WriteStone
-  lda ppuAddress
-  clc
-  adc #3
-  sta ppuAddress
-  lda ppuAddress + 1
-  adc #0
-  sta ppuAddress + 1
   inc stoneX
   lda stoneX
   cmp #8
   bne WriteStoneXLoop
-  lda ppuAddress
-  clc
-  adc #$48
-  sta ppuAddress
-  lda ppuAddress + 1
-  adc #0
-  sta ppuAddress + 1
   inc stoneY
   lda stoneY
   cmp #8
@@ -371,9 +349,26 @@ LoadGameWriteRightBorderLoop:
   bne LoadGameWriteRightBorderLoop
   stx bgBufferIndex
 
+  jsr WaitFrameProceeded
+  lda #$a6
+  sta stoneChar
+  lda #3
+  sta stoneX
+  sta stoneY
+  jsr WriteStone
+  inc stoneX
+  inc stoneY
+  jsr WriteStone
+  lda #$a3
+  sta stoneChar
+  dec stoneX
+  jsr WriteStone
+  inc stoneX
+  dec stoneY
+  jsr WriteStone
+
 WaitLoop:
-  lda #$01
-  sta frameProceeded
+  jsr WaitFrameProceeded
   jmp WaitLoop
 
 FinalizeSprite:
@@ -395,11 +390,36 @@ FinalizeSpriteBreak:
 WaitFrameProceeded:
   lda #$01
   sta frameProceeded
-  lda bgBufferIndex
-  bne WaitFrameProceeded
+WaitFrameProceededLoop:
+  lda frameProceeded
+  bne WaitFrameProceededLoop
   rts
 
 WriteStone:
+  lda stoneX
+  asl a
+  clc
+  adc stoneX
+  clc
+  adc #$62
+  sta ppuAddress
+  lda #$20
+  sta ppuAddress + 1
+  ldy stoneY
+WriteStoneSetYLoop:
+  cpy #$00
+  beq WriteStoneSetYBreak
+  lda ppuAddress
+  clc
+  adc #$60
+  sta ppuAddress
+  lda ppuAddress + 1
+  adc #$00
+  sta ppuAddress + 1
+  dey
+  jmp WriteStoneSetYLoop
+WriteStoneSetYBreak:
+  ldx bgBufferIndex
   ldy #$00
 WriteStoneLoop:
   lda ppuAddress + 1
