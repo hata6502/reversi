@@ -3,6 +3,10 @@
   .inesmir 0
   .inesmap 0
 
+cellBlack         .equ 1
+cellBlank         .equ 0
+cellWhite         .equ 2
+
 controllerA       .equ $80
 controllerB       .equ $40
 controllerDown    .equ $04
@@ -11,7 +15,6 @@ controllerRight   .equ $01
 controllerSelect  .equ $20
 controllerStart   .equ $10
 controllerUp      .equ $08
-sprite            .equ $0200
 
   .rsset $00
 bgBufferIndex         .rs $01
@@ -33,8 +36,12 @@ stoneY                .rs $01
 stoneChar             .rs $01
 titleAddress          .rs $02
 
+  .rsset $0200
+sprite  .rs $ff
+
   .rsset $0300
 bgBuffer .rs $40
+board    .rs 8*8
 
   .bank 0
   .org $c000
@@ -349,26 +356,83 @@ LoadGameWriteRightBorderLoop:
   bne LoadGameWriteRightBorderLoop
   stx bgBufferIndex
 
-  jsr WaitFrameProceeded
-  lda #$a6
+  lda #$a3
   sta stoneChar
   lda #3
   sta stoneX
+  lda #4
   sta stoneY
   jsr WriteStone
-  inc stoneX
-  inc stoneY
-  jsr WriteStone
-  lda #$a3
-  sta stoneChar
-  dec stoneX
-  jsr WriteStone
+  lda SetBlackStoneSE
+  sta soundCh1Timer
+  lda #low(SetBlackStoneSE + 1)
+  sta soundCh1Address
+  lda #high(SetBlackStoneSE + 1)
+  sta soundCh1Address + 1
+  ldx #30
+  jsr Sleep
+
   inc stoneX
   dec stoneY
   jsr WriteStone
+  lda SetBlackStoneSE
+  sta soundCh1Timer
+  lda #low(SetBlackStoneSE + 1)
+  sta soundCh1Address
+  lda #high(SetBlackStoneSE + 1)
+  sta soundCh1Address + 1
+  ldx #30
+  jsr Sleep
+
+  lda #$a6
+  sta stoneChar
+  dec stoneX
+  jsr WriteStone
+  lda SetWhiteStoneSE
+  sta soundCh1Timer
+  lda #low(SetWhiteStoneSE + 1)
+  sta soundCh1Address
+  lda #high(SetWhiteStoneSE + 1)
+  sta soundCh1Address + 1
+  ldx #30
+  jsr Sleep
+
+  inc stoneX
+  inc stoneY
+  jsr WriteStone
+  lda SetWhiteStoneSE
+  sta soundCh1Timer
+  lda #low(SetWhiteStoneSE + 1)
+  sta soundCh1Address
+  lda #high(SetWhiteStoneSE + 1)
+  sta soundCh1Address + 1
+  ldx #30
+  jsr Sleep
+
+  ldx #0
+  lda cellBlank
+InitializeBoardLoop:
+  sta board,x
+  inx
+  cpx #8*8
+  bne InitializeBoardLoop
+
+  
 
 WaitLoop:
-  jsr WaitFrameProceeded
+  lda #$a6
+  sta stoneChar
+  inc stoneX
+  inc stoneY
+  jsr WriteStone
+  lda SetWhiteStoneSE
+  sta soundCh1Timer
+  lda #low(SetWhiteStoneSE + 1)
+  sta soundCh1Address
+  lda #high(SetWhiteStoneSE + 1)
+  sta soundCh1Address + 1
+  ldx #15
+  jsr Sleep
   jmp WaitLoop
 
 FinalizeSprite:
@@ -385,6 +449,12 @@ FinalizeSpriteLoop:
   jmp FinalizeSpriteLoop
 FinalizeSpriteBreak:
   stx spriteIndex
+  rts
+
+Sleep:
+  jsr WaitFrameProceeded
+  dex
+  bne Sleep
   rts
 
 WaitFrameProceeded:
@@ -630,8 +700,6 @@ Notes:
   .dw 0026, 0024, 0023, 0021, 0020, 0019, 0018, 0017, 0016, 0015, 0014, 0013, 0012, 0012, 0011, 0010
   .dw 0010, 0009, 0008, 0008, 0007, 0007, 0006, 0006, 0006, 0005, 0005, 0005, 0004, 0004, 0004, 0003
 
-Palette:  .incbin "palette.dat"
-
 NoSound:
   .db 0, 0
 
@@ -702,6 +770,19 @@ PineappleRagCh2:
   .db 20, 46
   .db 0, 0
 
+SetBlackStoneSE:
+  .db 0, 67
+  .db 4, 71
+  .db 8, $ff
+  .db 0, 0
+
+SetWhiteStoneSE:
+  .db 0, 71
+  .db 4, 67
+  .db 8, $ff
+  .db 0, 0
+
+Palette:  .incbin "palette.dat"
 Title:  .incbin "title.nam"
 
   .bank 1
