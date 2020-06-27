@@ -179,6 +179,7 @@ LoadTitleWriteLoop:
 
 TitleLoop:
   jsr WaitFrameProceeded
+  jsr ReadController1
 
   lda controller1RisingEdge
   and #controllerStart
@@ -429,6 +430,7 @@ InitializeBoardLoop:
 
 WaitLoop:
   jsr WaitFrameProceeded
+  jsr ReadController1
 
   lda controller1RisingEdge
   and #controllerLeft
@@ -626,6 +628,43 @@ FinalizeSpriteBreak:
   stx spriteIndex
   rts
 
+ReadController1:
+  lda controller1
+  sta controller1Prev
+  lda #$01
+  sta $4016
+  lsr a
+  sta $4016
+  lda $4016
+  lsr a
+  rol controller1
+  lda $4016
+  lsr a
+  rol controller1
+  lda $4016
+  lsr a
+  rol controller1
+  lda $4016
+  lsr a
+  rol controller1
+  lda $4016
+  lsr a
+  rol controller1
+  lda $4016
+  lsr a
+  rol controller1
+  lda $4016
+  lsr a
+  rol controller1
+  lda $4016
+  lsr a
+  rol controller1
+  lda controller1Prev
+  eor #$ff
+  and controller1
+  sta controller1RisingEdge
+  rts
+
 Sleep:
   jsr WaitFrameProceeded
   dex
@@ -760,41 +799,6 @@ WritePpuBreak:
 
   lda #$04
   sta spriteIndex
-
-  lda controller1
-  sta controller1Prev
-  lda #$01
-  sta $4016
-  lsr a
-  sta $4016
-  lda $4016
-  lsr a
-  rol controller1
-  lda $4016
-  lsr a
-  rol controller1
-  lda $4016
-  lsr a
-  rol controller1
-  lda $4016
-  lsr a
-  rol controller1
-  lda $4016
-  lsr a
-  rol controller1
-  lda $4016
-  lsr a
-  rol controller1
-  lda $4016
-  lsr a
-  rol controller1
-  lda $4016
-  lsr a
-  rol controller1
-  lda controller1Prev
-  eor #$ff
-  and controller1
-  sta controller1RisingEdge
 VBlankFrameProcessSkip:
 
 PlaySoundCh1Loop:
