@@ -214,11 +214,11 @@ controllerTestSkip:
   jmp TitleLoop
 TitleBreak:
 
-  lda NoSound
+  lda StartSE
   sta soundCh1Timer
-  lda #low(NoSound + 1)
+  lda #low(StartSE + 1)
   sta soundCh1Address
-  lda #high(NoSound + 1)
+  lda #high(StartSE + 1)
   sta soundCh1Address + 1
   lda NoSound
   sta soundCh2Timer
@@ -226,6 +226,8 @@ TitleBreak:
   sta soundCh2Address
   lda #high(NoSound + 1)
   sta soundCh2Address + 1
+  ldx #90
+  jsr Sleep
 
   jsr FinalizeSprite
 
@@ -417,22 +419,7 @@ InitializeBoardLoop:
   cpx #8*8
   bne InitializeBoardLoop
 
-  
-
 WaitLoop:
-  lda #$a6
-  sta stoneChar
-  inc stoneX
-  inc stoneY
-  jsr WriteStone
-  lda SetWhiteStoneSE
-  sta soundCh1Timer
-  lda #low(SetWhiteStoneSE + 1)
-  sta soundCh1Address
-  lda #high(SetWhiteStoneSE + 1)
-  sta soundCh1Address + 1
-  ldx #15
-  jsr Sleep
   jmp WaitLoop
 
 FinalizeSprite:
@@ -771,15 +758,24 @@ PineappleRagCh2:
   .db 0, 0
 
 SetBlackStoneSE:
-  .db 0, 67
-  .db 4, 71
-  .db 8, $ff
+  .db 0, 67 - 6
+  .db 4, 71 - 6
+  .db 12, $ff
   .db 0, 0
 
 SetWhiteStoneSE:
-  .db 0, 71
-  .db 4, 67
-  .db 8, $ff
+  .db 0, 71 - 6
+  .db 4, 67 - 6
+  .db 12, $ff
+  .db 0, 0
+
+StartSE:
+  .db 0, $ff
+  .db 15, 45 + 24
+  .db 7, 42 + 24
+  .db 7, 38 + 24
+  .db 7, 42 + 24
+  .db 7, 45 + 24
   .db 0, 0
 
 Palette:  .incbin "palette.dat"
