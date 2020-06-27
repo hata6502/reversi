@@ -3,9 +3,11 @@
   .inesmir 0
   .inesmap 0
 
-cellBlack         .equ 1
-cellBlank         .equ 0
-cellWhite         .equ 2
+cellBlack         .equ $40
+cellBlank         .equ $00
+cellWhite         .equ $80
+cellBlackToWhite  .equ cellWhite + 8*4
+cellWhiteToBlack  .equ cellBlack + 8*4
 
 controllerA       .equ $80
 controllerB       .equ $40
@@ -42,7 +44,7 @@ titleAddress          .rs $02
 sprite  .rs $ff
 
   .rsset $0300
-bgBuffer .rs $40
+bgBuffer .rs $80
 board    .rs 8*8
 
   .bank 0
@@ -270,24 +272,21 @@ ClearTitleWriteLoop:
   sta stoneY
   lda #$a0
   sta stoneChar
-WriteStoneYLoop:
+LoadGameWriteBoardYLoop:
   lda #$00
   sta stoneX
-WriteStoneXLoop:
+LoadGameWriteBoardXLoop:
   lda stoneX
   and #%00000011
-  bne WriteStoneWaitSkip
-  jsr WaitFrameProceeded
-WriteStoneWaitSkip:
   jsr WriteStone
   inc stoneX
   lda stoneX
   cmp #8
-  bne WriteStoneXLoop
+  bne LoadGameWriteBoardXLoop
   inc stoneY
   lda stoneY
   cmp #8
-  bne WriteStoneYLoop
+  bne LoadGameWriteBoardYLoop
 
   jsr WaitFrameProceeded
   ldx #$00
@@ -375,7 +374,6 @@ LoadGameWriteRightBorderLoop:
   sta soundCh1Address + 1
   ldx #30
   jsr Sleep
-
   inc stoneX
   dec stoneY
   jsr WriteStone
@@ -387,7 +385,6 @@ LoadGameWriteRightBorderLoop:
   sta soundCh1Address + 1
   ldx #30
   jsr Sleep
-
   lda #$a6
   sta stoneChar
   dec stoneX
@@ -400,7 +397,6 @@ LoadGameWriteRightBorderLoop:
   sta soundCh1Address + 1
   ldx #30
   jsr Sleep
-
   inc stoneX
   inc stoneY
   jsr WriteStone
@@ -420,6 +416,12 @@ InitializeBoardLoop:
   inx
   cpx #8*8
   bne InitializeBoardLoop
+  lda #cellWhite
+  sta board + 3 + 3*8
+  sta board + 4 + 4*8
+  lda #cellBlack
+  sta board + 4 + 3*8
+  sta board + 3 + 4*8
 
   lda #3
   sta cursorX
@@ -455,41 +457,70 @@ MoveCursorDownSkip:
   and #7
   sta cursorY
 
+  lda cursorY
+  asl a
+  asl a
+  asl a
+  clc
+  adc cursorX
+  tax
   lda controller1RisingEdge
   and #controllerA
-  beq setBlackStoneSkip
-  lda #$a3
-  sta stoneChar
-  lda cursorX
-  sta stoneX
-  lda cursorY
-  sta stoneY
-  jsr WriteStone
+  beq SetBlackStoneSkip
+  lda #cellWhiteToBlack
+  sta board,x
   lda SetBlackStoneSE
   sta soundCh1Timer
   lda #low(SetBlackStoneSE + 1)
   sta soundCh1Address
   lda #high(SetBlackStoneSE + 1)
   sta soundCh1Address + 1
-setBlackStoneSkip:
-
+SetBlackStoneSkip:
   lda controller1RisingEdge
   and #controllerB
-  beq setWhiteStoneSkip
-  lda #$a6
-  sta stoneChar
-  lda cursorX
-  sta stoneX
-  lda cursorY
-  sta stoneY
-  jsr WriteStone
+  beq SetWhiteStoneSkip
+  lda #cellBlackToWhite
+  sta board,x
   lda SetWhiteStoneSE
   sta soundCh1Timer
   lda #low(SetWhiteStoneSE + 1)
   sta soundCh1Address
   lda #high(SetWhiteStoneSE + 1)
   sta soundCh1Address + 1
-setWhiteStoneSkip:
+SetWhiteStoneSkip:
+
+  ldx #0
+TurnStoneLoop:
+  lda board,x
+  and #%00111111
+  beq TurnStoneSkip
+  and #%00000111
+  bne TurnStoneWriteSkip
+  lda board,x
+  lsr a
+  lsr a
+  lsr a
+  tay
+  lda StoneChars,y
+  sta stoneChar
+  txa
+  and #7
+  sta stoneX
+  txa
+  pha
+  lsr a
+  lsr a
+  lsr a
+  sta stoneY
+  jsr WriteStone
+  pla
+  tax
+TurnStoneWriteSkip:
+  dec board,x
+TurnStoneSkip:
+  inx
+  cpx #8*8
+  bne TurnStoneLoop
 
   lda cursorX
   asl a
@@ -634,6 +665,11 @@ WriteStoneSetYLoop:
   jmp WriteStoneSetYLoop
 WriteStoneSetYBreak:
   ldx bgBufferIndex
+  cpx #$40
+  bmi WriteStoneWaitSkip
+  jsr WaitFrameProceeded
+  ldx bgBufferIndex
+WriteStoneWaitSkip:
   ldy #$00
 WriteStoneLoop:
   lda ppuAddress + 1
@@ -834,6 +870,15 @@ PlaySoundCh2Break:
   pla
   rti
 
+Palette:  .incbin "palette.dat"
+
+StoneChars:
+  .db $a0, $a0, $a0, $a0, $a0, $a0, $a0, $a0
+  .db $a3, $a3, $d3, $dc, $d6, $a0, $a0, $a0
+  .db $a6, $a6, $d9, $dc, $d0, $a0, $a0, $a0
+
+Title:  .incbin "title.nam"
+
 Notes:
   .dw 6821, 6429, 6079, 5766, 5430, 5131, 4821, 4584, 4302, 4052, 3830, 3631, 3410, 3232, 3039, 2882
   .dw 2714, 2565, 2421, 2282, 2150, 2033, 1921, 1809, 1710, 1616, 1523, 1437, 1357, 1279, 1210, 1141
@@ -934,9 +979,6 @@ StartSE:
   .db 7, 42 + 24
   .db 7, 45 + 24
   .db 0, 0
-
-Palette:  .incbin "palette.dat"
-Title:  .incbin "title.nam"
 
   .bank 1
   .org $fffa
