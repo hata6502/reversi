@@ -21,6 +21,8 @@ bgBufferIndex         .rs $01
 controller1           .rs $01
 controller1Prev       .rs $01
 controller1RisingEdge .rs $01
+cursorX               .rs $01
+cursorY               .rs $01
 frameProceeded        .rs $01
 gameMode              .rs $01
 ppuAddress            .rs $02
@@ -182,12 +184,12 @@ TitleLoop:
 
   lda controller1RisingEdge
   and #controllerSelect
-  beq controllerTestSkip
+  beq selectGameSkip
   inc gameMode
   lda gameMode
   and #$03
   sta gameMode
-controllerTestSkip:
+selectGameSkip:
 
   ldx spriteIndex
   lda gameMode
@@ -196,7 +198,7 @@ controllerTestSkip:
   asl a
   asl a
   clc
-  adc #$76
+  adc #$75
   sta sprite,x
   inx
   lda #$2a
@@ -419,7 +421,162 @@ InitializeBoardLoop:
   cpx #8*8
   bne InitializeBoardLoop
 
+  lda #3
+  sta cursorX
+  sta cursorY
+
 WaitLoop:
+  jsr WaitFrameProceeded
+
+  lda controller1RisingEdge
+  and #controllerLeft
+  beq MoveCursorLeftSkip
+  dec cursorX
+MoveCursorLeftSkip:
+  lda controller1RisingEdge
+  and #controllerRight
+  beq MoveCursorRightSkip
+  inc cursorX
+MoveCursorRightSkip:
+  lda cursorX
+  and #7
+  sta cursorX
+  lda controller1RisingEdge
+  and #controllerUp
+  beq MoveCursorUpSkip
+  dec cursorY
+MoveCursorUpSkip:
+  lda controller1RisingEdge
+  and #controllerDown
+  beq MoveCursorDownSkip
+  inc cursorY
+MoveCursorDownSkip:
+  lda cursorY
+  and #7
+  sta cursorY
+
+  lda controller1RisingEdge
+  and #controllerA
+  beq setBlackStoneSkip
+  lda #$a3
+  sta stoneChar
+  lda cursorX
+  sta stoneX
+  lda cursorY
+  sta stoneY
+  jsr WriteStone
+  lda SetBlackStoneSE
+  sta soundCh1Timer
+  lda #low(SetBlackStoneSE + 1)
+  sta soundCh1Address
+  lda #high(SetBlackStoneSE + 1)
+  sta soundCh1Address + 1
+setBlackStoneSkip:
+
+  lda controller1RisingEdge
+  and #controllerB
+  beq setWhiteStoneSkip
+  lda #$a6
+  sta stoneChar
+  lda cursorX
+  sta stoneX
+  lda cursorY
+  sta stoneY
+  jsr WriteStone
+  lda SetWhiteStoneSE
+  sta soundCh1Timer
+  lda #low(SetWhiteStoneSE + 1)
+  sta soundCh1Address
+  lda #high(SetWhiteStoneSE + 1)
+  sta soundCh1Address + 1
+setWhiteStoneSkip:
+
+  lda cursorX
+  asl a
+  asl a
+  asl a
+  sta stoneX
+  asl a
+  clc
+  adc stoneX
+  sta stoneX
+  lda cursorY
+  asl a
+  asl a
+  asl a
+  sta stoneY
+  asl a
+  clc
+  adc stoneY
+  sta stoneY
+  ldx spriteIndex
+  lda stoneY
+  clc
+  adc #23
+  sta sprite,x
+  inx
+  lda #$c9
+  sta sprite,x
+  inx
+  lda #%00000010
+  sta sprite,x
+  inx
+  lda stoneX
+  clc
+  adc #16
+  sta sprite,x
+  inx
+  lda stoneY
+  clc
+  adc #23
+  sta sprite,x
+  inx
+  lda #$c9
+  sta sprite,x
+  inx
+  lda #%01000010
+  sta sprite,x
+  inx
+  lda stoneX
+  clc
+  adc #31
+  sta sprite,x
+  inx
+  lda stoneY
+  clc
+  adc #38
+  sta sprite,x
+  inx
+  lda #$c9
+  sta sprite,x
+  inx
+  lda #%10000010
+  sta sprite,x
+  inx
+  lda stoneX
+  clc
+  adc #16
+  sta sprite,x
+  inx
+  lda stoneY
+  clc
+  adc #38
+  sta sprite,x
+  inx
+  lda #$c9
+  sta sprite,x
+  inx
+  lda #%11000010
+  sta sprite,x
+  inx
+  lda stoneX
+  clc
+  adc #31
+  sta sprite,x
+  inx
+  stx spriteIndex
+
+  jsr FinalizeSprite
   jmp WaitLoop
 
 FinalizeSprite:
