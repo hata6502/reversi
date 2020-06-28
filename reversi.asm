@@ -7,6 +7,8 @@ cellBlack         .equ $40
 cellBlank         .equ $00
 cellWhite         .equ $80
 cellBlackToWhite  .equ cellWhite + 8*4
+cellSetBlack      .equ cellBlack + 8
+cellSetWhite      .equ cellWhite + 8
 cellWhiteToBlack  .equ cellBlack + 8*4
 
 controllerA       .equ $80
@@ -19,26 +21,32 @@ controllerStart   .equ $10
 controllerUp      .equ $08
 
   .rsset $00
-bgBufferIndex         .rs $01
-controller1           .rs $01
-controller1Prev       .rs $01
-controller1RisingEdge .rs $01
-cursorX               .rs $01
-cursorY               .rs $01
-frameProceeded        .rs $01
-gameMode              .rs $01
-ppuAddress            .rs $02
-ppuControl1           .rs $01
-ppuControl2           .rs $01
-soundCh1Address       .rs $02
-soundCh1Timer         .rs $01
-soundCh2Address       .rs $02
-soundCh2Timer         .rs $01
-spriteIndex           .rs $01
-stoneX                .rs $01
-stoneY                .rs $01
-stoneChar             .rs $01
-titleAddress          .rs $02
+bgBufferIndex               .rs $01
+controller1                 .rs $01
+controller1Prev             .rs $01
+controller1RisingEdge       .rs $01
+cursorX                     .rs $01
+cursorY                     .rs $01
+frameProceeded              .rs $01
+gameMode                    .rs $01
+ppuAddress                  .rs $02
+ppuControl1                 .rs $01
+ppuControl2                 .rs $01
+soundCh1Address             .rs $02
+soundCh1Timer               .rs $01
+soundCh2Address             .rs $02
+soundCh2Timer               .rs $01
+spriteIndex                 .rs $01
+stoneX                      .rs $01
+stoneY                      .rs $01
+stoneChar                   .rs $01
+titleAddress                .rs $02
+turnStonesCell              .rs $01
+turnStonesEndIndex          .rs $01
+turnStonesPrevIndex         .rs $01
+turnStonesPrevIndexPartial  .rs $01
+turnStonesStartIndex        .rs $01
+turnStonesWriteAnimation    .rs $01
 
   .rsset $0200
 sprite  .rs $ff
@@ -428,7 +436,7 @@ InitializeBoardLoop:
   sta cursorX
   sta cursorY
 
-WaitLoop:
+GameLoop:
   jsr WaitFrameProceeded
   jsr ReadController1
 
@@ -469,8 +477,13 @@ MoveCursorDownSkip:
   lda controller1RisingEdge
   and #controllerA
   beq SetBlackStoneSkip
-  lda #cellWhiteToBlack
+  lda #cellSetBlack
   sta board,x
+  txa
+  pha
+  jsr TurnStones
+  pla
+  tax
   lda SetBlackStoneSE
   sta soundCh1Timer
   lda #low(SetBlackStoneSE + 1)
@@ -478,11 +491,17 @@ MoveCursorDownSkip:
   lda #high(SetBlackStoneSE + 1)
   sta soundCh1Address + 1
 SetBlackStoneSkip:
+
   lda controller1RisingEdge
   and #controllerB
   beq SetWhiteStoneSkip
-  lda #cellBlackToWhite
+  lda #cellSetWhite
   sta board,x
+  txa
+  pha
+  jsr TurnStones
+  pla
+  tax
   lda SetWhiteStoneSE
   sta soundCh1Timer
   lda #low(SetWhiteStoneSE + 1)
@@ -610,7 +629,16 @@ TurnStoneSkip:
   stx spriteIndex
 
   jsr FinalizeSprite
-  jmp WaitLoop
+  jmp GameLoop
+
+Abs:
+  cmp #$00
+  bpl AbsInvertSkip
+  eor #$ff
+  clc
+  adc #$01
+AbsInvertSkip:
+  rts
 
 FinalizeSprite:
   ldx spriteIndex
@@ -669,6 +697,77 @@ Sleep:
   jsr WaitFrameProceeded
   dex
   bne Sleep
+  rts
+
+TurnStones:
+  lda board,x
+  and #%11000000
+  sta turnStonesCell
+  stx turnStonesStartIndex
+  ldy #0
+TurnStonesDirectionLoop:
+  ldx turnStonesStartIndex
+TurnStonesCheckLoop:
+  stx turnStonesPrevIndex
+  txa
+  clc
+  adc TurnStonesDirection,y
+  tax
+
+  lda turnStonesPrevIndex
+  and #%00000111
+  sta turnStonesPrevIndexPartial
+  txa
+  and #%00000111
+  sec
+  sbc turnStonesPrevIndexPartial
+  jsr Abs
+  cmp #%00000111
+  beq TurnStonesCheckSkip
+  lda turnStonesPrevIndex
+  and #%00111000
+  sta turnStonesPrevIndexPartial
+  txa
+  and #%00111000
+  sec
+  sbc turnStonesPrevIndexPartial
+  jsr Abs
+  cmp #%00111000
+  beq TurnStonesCheckSkip
+
+  lda board,x
+  and #%11000000
+  cmp #cellBlank
+  beq TurnStonesCheckSkip
+
+  lda board,x
+  and #%11000000
+  cmp turnStonesCell
+  bne TurnStonesCellSkip
+  lda #cellWhiteToBlack - cellBlack + 1
+  sta turnStonesWriteAnimation
+  stx turnStonesEndIndex
+  ldx turnStonesStartIndex
+TurnStonesWriteLoop:
+  txa
+  clc
+  adc TurnStonesDirection,y
+  tax
+  cpx turnStonesEndIndex
+  beq TurnStonesCheckSkip
+  lda turnStonesCell
+  clc
+  adc turnStonesWriteAnimation
+  sta board,x
+  inc turnStonesWriteAnimation
+  jmp TurnStonesWriteLoop
+TurnStonesCellSkip:
+
+  jmp TurnStonesCheckLoop
+TurnStonesCheckSkip:
+  iny
+  cpy #8
+  bne TurnStonesDirectionLoop
   rts
 
 WaitFrameProceeded:
@@ -874,13 +973,14 @@ PlaySoundCh2Break:
   pla
   rti
 
-Palette:  .incbin "palette.dat"
+TurnStonesDirection:
+  .db $01, $09, $08, $07, $ff, $f7, $f8, $f9
 
+Palette:  .incbin "palette.dat"
 StoneChars:
   .db $a0, $a0, $a0, $a0, $a0, $a0, $a0, $a0
-  .db $a3, $a3, $d3, $dc, $d6, $a0, $a0, $a0
-  .db $a6, $a6, $d9, $dc, $d0, $a0, $a0, $a0
-
+  .db $a3, $a3, $d3, $dc, $d6, $a6, $a6, $a6
+  .db $a6, $a6, $d9, $dc, $d0, $a3, $a3, $a3
 Title:  .incbin "title.nam"
 
 Notes:
@@ -892,10 +992,8 @@ Notes:
   .dw 0066, 0063, 0059, 0056, 0052, 0049, 0047, 0044, 0041, 0039, 0037, 0035, 0033, 0031, 0029, 0027
   .dw 0026, 0024, 0023, 0021, 0020, 0019, 0018, 0017, 0016, 0015, 0014, 0013, 0012, 0012, 0011, 0010
   .dw 0010, 0009, 0008, 0008, 0007, 0007, 0006, 0006, 0006, 0005, 0005, 0005, 0004, 0004, 0004, 0003
-
 NoSound:
   .db 0, 0
-
 PineappleRagCh1:
   .db 0, 67
   .db 10, 65
@@ -944,7 +1042,6 @@ PineappleRagCh1:
   .db 10, 74
   .db 9, 70
   .db 0, 0
-
 PineappleRagCh2:
   .db 255, 255
   .db 33, 255
@@ -962,19 +1059,16 @@ PineappleRagCh2:
   .db 19, 53
   .db 20, 46
   .db 0, 0
-
 SetBlackStoneSE:
   .db 0, 67 - 6
   .db 4, 71 - 6
   .db 12, $ff
   .db 0, 0
-
 SetWhiteStoneSE:
   .db 0, 71 - 6
   .db 4, 67 - 6
   .db 12, $ff
   .db 0, 0
-
 StartSE:
   .db 0, $ff
   .db 15, 45 + 24
