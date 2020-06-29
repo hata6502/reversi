@@ -42,6 +42,7 @@ stoneY                      .rs $01
 stoneChar                   .rs $01
 titleAddress                .rs $02
 turnStonesCell              .rs $01
+turnStonesCount             .rs $01
 turnStonesEndIndex          .rs $01
 turnStonesPrevIndex         .rs $01
 turnStonesPrevIndexPartial  .rs $01
@@ -399,22 +400,22 @@ LoadGameWriteRightBorderLoop:
   dec stoneX
   jsr WriteStone
   lda SetWhiteStoneSE
-  sta soundCh1Timer
+  sta soundCh2Timer
   lda #low(SetWhiteStoneSE + 1)
-  sta soundCh1Address
+  sta soundCh2Address
   lda #high(SetWhiteStoneSE + 1)
-  sta soundCh1Address + 1
+  sta soundCh2Address + 1
   ldx #30
   jsr Sleep
   inc stoneX
   inc stoneY
   jsr WriteStone
   lda SetWhiteStoneSE
-  sta soundCh1Timer
+  sta soundCh2Timer
   lda #low(SetWhiteStoneSE + 1)
-  sta soundCh1Address
+  sta soundCh2Address
   lda #high(SetWhiteStoneSE + 1)
-  sta soundCh1Address + 1
+  sta soundCh2Address + 1
   ldx #30
   jsr Sleep
 
@@ -476,25 +477,10 @@ MoveCursorDownSkip:
   tax
   lda controller1RisingEdge
   and #controllerA
-  beq SetBlackStoneSkip
-  lda #cellSetBlack
-  sta board,x
-  txa
-  pha
-  jsr TurnStones
-  pla
-  tax
-  lda SetBlackStoneSE
-  sta soundCh1Timer
-  lda #low(SetBlackStoneSE + 1)
-  sta soundCh1Address
-  lda #high(SetBlackStoneSE + 1)
-  sta soundCh1Address + 1
-SetBlackStoneSkip:
-
-  lda controller1RisingEdge
-  and #controllerB
   beq SetWhiteStoneSkip
+  lda board,x
+  cmp #cellBlank
+  bne SetWhiteStoneError
   lda #cellSetWhite
   sta board,x
   txa
@@ -502,12 +488,25 @@ SetBlackStoneSkip:
   jsr TurnStones
   pla
   tax
+  lda turnStonesCount
+  beq SetWhiteStoneRestore
   lda SetWhiteStoneSE
-  sta soundCh1Timer
+  sta soundCh2Timer
   lda #low(SetWhiteStoneSE + 1)
-  sta soundCh1Address
+  sta soundCh2Address
   lda #high(SetWhiteStoneSE + 1)
-  sta soundCh1Address + 1
+  sta soundCh2Address + 1
+  jmp SetWhiteStoneSkip
+SetWhiteStoneRestore:
+  lda #cellBlank
+  sta board,x
+SetWhiteStoneError:
+  lda ErrorSE
+  sta soundCh2Timer
+  lda #low(ErrorSE + 1)
+  sta soundCh2Address
+  lda #high(ErrorSE + 1)
+  sta soundCh2Address + 1
 SetWhiteStoneSkip:
 
   ldx #0
@@ -705,6 +704,7 @@ TurnStones:
   sta turnStonesCell
   stx turnStonesStartIndex
   ldy #0
+  sty turnStonesCount
 TurnStonesDirectionLoop:
   ldx turnStonesStartIndex
 TurnStonesCheckLoop:
@@ -759,6 +759,7 @@ TurnStonesWriteLoop:
   clc
   adc turnStonesWriteAnimation
   sta board,x
+  inc turnStonesCount
   inc turnStonesWriteAnimation
   jmp TurnStonesWriteLoop
 TurnStonesCellSkip:
@@ -1059,18 +1060,24 @@ PineappleRagCh2:
   .db 19, 53
   .db 20, 46
   .db 0, 0
+ErrorSE:
+  .db 0, 40
+  .db 5, $7f
+  .db 10, 40
+  .db 15, $7f
+  .db 0, 0
 SetBlackStoneSE:
   .db 0, 67 - 6
   .db 4, 71 - 6
-  .db 12, $ff
+  .db 12, $7f
   .db 0, 0
 SetWhiteStoneSE:
   .db 0, 71 - 6
   .db 4, 67 - 6
-  .db 12, $ff
+  .db 12, $7f
   .db 0, 0
 StartSE:
-  .db 0, $ff
+  .db 0, $7f
   .db 15, 45 + 24
   .db 7, 42 + 24
   .db 7, 38 + 24
