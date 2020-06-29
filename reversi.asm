@@ -376,22 +376,22 @@ LoadGameWriteRightBorderLoop:
   lda #4
   sta stoneY
   jsr WriteStone
-  lda SetBlackStoneSE
+  lda SetBlackSE
   sta soundCh1Timer
-  lda #low(SetBlackStoneSE + 1)
+  lda #low(SetBlackSE + 1)
   sta soundCh1Address
-  lda #high(SetBlackStoneSE + 1)
+  lda #high(SetBlackSE + 1)
   sta soundCh1Address + 1
   ldx #30
   jsr Sleep
   inc stoneX
   dec stoneY
   jsr WriteStone
-  lda SetBlackStoneSE
+  lda SetBlackSE
   sta soundCh1Timer
-  lda #low(SetBlackStoneSE + 1)
+  lda #low(SetBlackSE + 1)
   sta soundCh1Address
-  lda #high(SetBlackStoneSE + 1)
+  lda #high(SetBlackSE + 1)
   sta soundCh1Address + 1
   ldx #30
   jsr Sleep
@@ -399,22 +399,22 @@ LoadGameWriteRightBorderLoop:
   sta stoneChar
   dec stoneX
   jsr WriteStone
-  lda SetWhiteStoneSE
+  lda SetWhiteSE
   sta soundCh2Timer
-  lda #low(SetWhiteStoneSE + 1)
+  lda #low(SetWhiteSE + 1)
   sta soundCh2Address
-  lda #high(SetWhiteStoneSE + 1)
+  lda #high(SetWhiteSE + 1)
   sta soundCh2Address + 1
   ldx #30
   jsr Sleep
   inc stoneX
   inc stoneY
   jsr WriteStone
-  lda SetWhiteStoneSE
+  lda SetWhiteSE
   sta soundCh2Timer
-  lda #low(SetWhiteStoneSE + 1)
+  lda #low(SetWhiteSE + 1)
   sta soundCh2Address
-  lda #high(SetWhiteStoneSE + 1)
+  lda #high(SetWhiteSE + 1)
   sta soundCh2Address + 1
   ldx #30
   jsr Sleep
@@ -439,8 +439,67 @@ InitializeBoardLoop:
 
 GameLoop:
   jsr WaitFrameProceeded
-  jsr ReadController1
 
+  jsr ReadController1
+  ;execPlayerCell
+  ;execPlayercontrollerRisingEdge
+  ;execPlayerSetSE
+  ;execPlayerPalette
+  ;execPlayerCursorX
+  ;execPlayerCursorY
+  ;execPlayerSoundTimer
+  ;execPlayerSoundAddress
+  jsr ExecPlayer
+
+  jsr ReadController1
+  jsr ExecPlayer
+
+  ldx #0
+TurnStoneLoop:
+  lda board,x
+  and #%00111111
+  beq TurnStoneSkip
+  and #%00000111
+  bne TurnStoneWriteSkip
+  lda board,x
+  lsr a
+  lsr a
+  lsr a
+  tay
+  lda StoneChars,y
+  sta stoneChar
+  txa
+  and #7
+  sta stoneX
+  txa
+  pha
+  lsr a
+  lsr a
+  lsr a
+  sta stoneY
+  jsr WriteStone
+  pla
+  tax
+TurnStoneWriteSkip:
+  dec board,x
+TurnStoneSkip:
+  inx
+  cpx #8*8
+  bne TurnStoneLoop
+
+  jsr FinalizeSprite
+  jmp GameLoop
+
+Abs:
+  cmp #$00
+  bpl AbsInvertSkip
+  eor #$ff
+  clc
+  adc #$01
+AbsInvertSkip:
+  rts
+
+ExecPlayer:
   lda controller1RisingEdge
   and #controllerLeft
   beq MoveCursorLeftSkip
@@ -477,10 +536,10 @@ MoveCursorDownSkip:
   tax
   lda controller1RisingEdge
   and #controllerA
-  beq SetWhiteStoneSkip
+  beq SetStoneSkip
   lda board,x
   cmp #cellBlank
-  bne SetWhiteStoneError
+  bne SetStoneError
   lda #cellSetWhite
   sta board,x
   txa
@@ -489,58 +548,25 @@ MoveCursorDownSkip:
   pla
   tax
   lda turnStonesCount
-  beq SetWhiteStoneRestore
-  lda SetWhiteStoneSE
+  beq SetStoneRestore
+  lda SetWhiteSE
   sta soundCh2Timer
-  lda #low(SetWhiteStoneSE + 1)
+  lda #low(SetWhiteSE + 1)
   sta soundCh2Address
-  lda #high(SetWhiteStoneSE + 1)
+  lda #high(SetWhiteSE + 1)
   sta soundCh2Address + 1
-  jmp SetWhiteStoneSkip
-SetWhiteStoneRestore:
+  jmp SetStoneSkip
+SetStoneRestore:
   lda #cellBlank
   sta board,x
-SetWhiteStoneError:
+SetStoneError:
   lda ErrorSE
   sta soundCh2Timer
   lda #low(ErrorSE + 1)
   sta soundCh2Address
   lda #high(ErrorSE + 1)
   sta soundCh2Address + 1
-SetWhiteStoneSkip:
-
-  ldx #0
-TurnStoneLoop:
-  lda board,x
-  and #%00111111
-  beq TurnStoneSkip
-  and #%00000111
-  bne TurnStoneWriteSkip
-  lda board,x
-  lsr a
-  lsr a
-  lsr a
-  tay
-  lda StoneChars,y
-  sta stoneChar
-  txa
-  and #7
-  sta stoneX
-  txa
-  pha
-  lsr a
-  lsr a
-  lsr a
-  sta stoneY
-  jsr WriteStone
-  pla
-  tax
-TurnStoneWriteSkip:
-  dec board,x
-TurnStoneSkip:
-  inx
-  cpx #8*8
-  bne TurnStoneLoop
+SetStoneSkip:
 
   lda cursorX
   asl a
@@ -626,17 +652,6 @@ TurnStoneSkip:
   sta sprite,x
   inx
   stx spriteIndex
-
-  jsr FinalizeSprite
-  jmp GameLoop
-
-Abs:
-  cmp #$00
-  bpl AbsInvertSkip
-  eor #$ff
-  clc
-  adc #$01
-AbsInvertSkip:
   rts
 
 FinalizeSprite:
@@ -1066,12 +1081,12 @@ ErrorSE:
   .db 10, 40
   .db 15, $7f
   .db 0, 0
-SetBlackStoneSE:
+SetBlackSE:
   .db 0, 67 - 6
   .db 4, 71 - 6
   .db 12, $7f
   .db 0, 0
-SetWhiteStoneSE:
+SetWhiteSE:
   .db 0, 71 - 6
   .db 4, 67 - 6
   .db 12, $7f
