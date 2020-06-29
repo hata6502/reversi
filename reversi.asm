@@ -21,33 +21,46 @@ controllerStart   .equ $10
 controllerUp      .equ $08
 
   .rsset $00
-bgBufferIndex               .rs $01
-controller1                 .rs $01
-controller1Prev             .rs $01
-controller1RisingEdge       .rs $01
-cursorX                     .rs $01
-cursorY                     .rs $01
-frameProceeded              .rs $01
-gameMode                    .rs $01
-ppuAddress                  .rs $02
-ppuControl1                 .rs $01
-ppuControl2                 .rs $01
-soundCh1Address             .rs $02
-soundCh1Timer               .rs $01
-soundCh2Address             .rs $02
-soundCh2Timer               .rs $01
-spriteIndex                 .rs $01
-stoneX                      .rs $01
-stoneY                      .rs $01
-stoneChar                   .rs $01
-titleAddress                .rs $02
-turnStonesCell              .rs $01
-turnStonesCount             .rs $01
-turnStonesEndIndex          .rs $01
-turnStonesPrevIndex         .rs $01
-turnStonesPrevIndexPartial  .rs $01
-turnStonesStartIndex        .rs $01
-turnStonesWriteAnimation    .rs $01
+bgBufferIndex                   .rs $01
+controller1                     .rs $01
+controller1Prev                 .rs $01
+controller1RisingEdge           .rs $01
+controller2                     .rs $01
+controller2Prev                 .rs $01
+controller2RisingEdge           .rs $01
+cursor1X                        .rs $01
+cursor1Y                        .rs $01
+cursor2X                        .rs $01
+cursor2Y                        .rs $01
+execPlayerCell                  .rs $01
+execPlayerControllerRisingEdge  .rs $01
+execPlayerCursorX               .rs $01
+execPlayerCursorY               .rs $01
+execPlayerPalette               .rs $01
+execPlayerSetSE                 .rs $02
+execPlayerSoundAddress          .rs $02
+execPlayerSoundTimer            .rs $01
+frameProceeded                  .rs $01
+gameMode                        .rs $01
+ppuAddress                      .rs $02
+ppuControl1                     .rs $01
+ppuControl2                     .rs $01
+soundCh1Address                 .rs $02
+soundCh1Timer                   .rs $01
+soundCh2Address                 .rs $02
+soundCh2Timer                   .rs $01
+spriteIndex                     .rs $01
+stoneX                          .rs $01
+stoneY                          .rs $01
+stoneChar                       .rs $01
+titleAddress                    .rs $02
+turnStonesCell                  .rs $01
+turnStonesCount                 .rs $01
+turnStonesEndIndex              .rs $01
+turnStonesPrevIndex             .rs $01
+turnStonesPrevIndexPartial      .rs $01
+turnStonesStartIndex            .rs $01
+turnStonesWriteAnimation        .rs $01
 
   .rsset $0200
 sprite  .rs $ff
@@ -188,7 +201,7 @@ LoadTitleWriteLoop:
 
 TitleLoop:
   jsr WaitFrameProceeded
-  jsr ReadController1
+  jsr ReadController
 
   lda controller1RisingEdge
   and #controllerStart
@@ -434,25 +447,79 @@ InitializeBoardLoop:
   sta board + 3 + 4*8
 
   lda #3
-  sta cursorX
-  sta cursorY
+  sta cursor1X
+  sta cursor1Y
+  lda #4
+  sta cursor2X
+  sta cursor2Y
 
 GameLoop:
   jsr WaitFrameProceeded
+  jsr ReadController
 
-  jsr ReadController1
-  ;execPlayerCell
-  ;execPlayercontrollerRisingEdge
-  ;execPlayerSetSE
-  ;execPlayerPalette
-  ;execPlayerCursorX
-  ;execPlayerCursorY
-  ;execPlayerSoundTimer
-  ;execPlayerSoundAddress
+  lda #cellSetBlack
+  sta execPlayerCell
+  lda controller1RisingEdge
+  sta execPlayerControllerRisingEdge
+  lda #low(SetBlackSE)
+  sta execPlayerSetSE
+  lda #high(SetBlackSE)
+  sta execPlayerSetSE + 1
+  lda #$03
+  sta execPlayerPalette
+  lda cursor1X
+  sta execPlayerCursorX
+  lda cursor1Y
+  sta execPlayerCursorY
+  lda soundCh1Timer
+  sta execPlayerSoundTimer
+  lda soundCh1Address
+  sta execPlayerSoundAddress
+  lda soundCh1Address + 1
+  sta execPlayerSoundAddress + 1
   jsr ExecPlayer
+  lda execPlayerCursorX
+  sta cursor1X
+  lda execPlayerCursorY
+  sta cursor1Y
+  lda execPlayerSoundTimer
+  sta soundCh1Timer
+  lda execPlayerSoundAddress
+  sta soundCh1Address
+  lda execPlayerSoundAddress + 1
+  sta soundCh1Address + 1
 
-  jsr ReadController1
+  lda #cellSetWhite
+  sta execPlayerCell
+  lda controller2RisingEdge
+  sta execPlayerControllerRisingEdge
+  lda #low(SetWhiteSE)
+  sta execPlayerSetSE
+  lda #high(SetWhiteSE)
+  sta execPlayerSetSE + 1
+  lda #$00
+  sta execPlayerPalette
+  lda cursor2X
+  sta execPlayerCursorX
+  lda cursor2Y
+  sta execPlayerCursorY
+  lda soundCh2Timer
+  sta execPlayerSoundTimer
+  lda soundCh2Address
+  sta execPlayerSoundAddress
+  lda soundCh2Address + 1
+  sta execPlayerSoundAddress + 1
   jsr ExecPlayer
+  lda execPlayerCursorX
+  sta cursor2X
+  lda execPlayerCursorY
+  sta cursor2Y
+  lda execPlayerSoundTimer
+  sta soundCh2Timer
+  lda execPlayerSoundAddress
+  sta soundCh2Address
+  lda execPlayerSoundAddress + 1
+  sta soundCh2Address + 1
 
   ldx #0
 TurnStoneLoop:
@@ -500,47 +567,47 @@ AbsInvertSkip:
   rts
 
 ExecPlayer:
-  lda controller1RisingEdge
+  lda execPlayerControllerRisingEdge
   and #controllerLeft
   beq MoveCursorLeftSkip
-  dec cursorX
+  dec execPlayerCursorX
 MoveCursorLeftSkip:
-  lda controller1RisingEdge
+  lda execPlayerControllerRisingEdge
   and #controllerRight
   beq MoveCursorRightSkip
-  inc cursorX
+  inc execPlayerCursorX
 MoveCursorRightSkip:
-  lda cursorX
+  lda execPlayerCursorX
   and #7
-  sta cursorX
-  lda controller1RisingEdge
+  sta execPlayerCursorX
+  lda execPlayerControllerRisingEdge
   and #controllerUp
   beq MoveCursorUpSkip
-  dec cursorY
+  dec execPlayerCursorY
 MoveCursorUpSkip:
-  lda controller1RisingEdge
+  lda execPlayerControllerRisingEdge
   and #controllerDown
   beq MoveCursorDownSkip
-  inc cursorY
+  inc execPlayerCursorY
 MoveCursorDownSkip:
-  lda cursorY
+  lda execPlayerCursorY
   and #7
-  sta cursorY
+  sta execPlayerCursorY
 
-  lda cursorY
+  lda execPlayerCursorY
   asl a
   asl a
   asl a
   clc
-  adc cursorX
+  adc execPlayerCursorX
   tax
-  lda controller1RisingEdge
+  lda execPlayerControllerRisingEdge
   and #controllerA
   beq SetStoneSkip
   lda board,x
   cmp #cellBlank
   bne SetStoneError
-  lda #cellSetWhite
+  lda execPlayerCell
   sta board,x
   txa
   pha
@@ -549,26 +616,30 @@ MoveCursorDownSkip:
   tax
   lda turnStonesCount
   beq SetStoneRestore
-  lda SetWhiteSE
-  sta soundCh2Timer
-  lda #low(SetWhiteSE + 1)
-  sta soundCh2Address
-  lda #high(SetWhiteSE + 1)
-  sta soundCh2Address + 1
+  ldy #$00
+  lda [execPlayerSetSE],y
+  sta execPlayerSoundTimer
+  lda execPlayerSetSE
+  clc
+  adc #$01
+  sta execPlayerSoundAddress
+  lda execPlayerSetSE + 1
+  adc #$00
+  sta execPlayerSoundAddress + 1
   jmp SetStoneSkip
 SetStoneRestore:
   lda #cellBlank
   sta board,x
 SetStoneError:
   lda ErrorSE
-  sta soundCh2Timer
+  sta execPlayerSoundTimer
   lda #low(ErrorSE + 1)
-  sta soundCh2Address
+  sta execPlayerSoundAddress
   lda #high(ErrorSE + 1)
-  sta soundCh2Address + 1
+  sta execPlayerSoundAddress + 1
 SetStoneSkip:
 
-  lda cursorX
+  lda execPlayerCursorX
   asl a
   asl a
   asl a
@@ -577,7 +648,7 @@ SetStoneSkip:
   clc
   adc stoneX
   sta stoneX
-  lda cursorY
+  lda execPlayerCursorY
   asl a
   asl a
   asl a
@@ -595,7 +666,7 @@ SetStoneSkip:
   lda #$c9
   sta sprite,x
   inx
-  lda #%00000010
+  lda execPlayerPalette
   sta sprite,x
   inx
   lda stoneX
@@ -611,7 +682,8 @@ SetStoneSkip:
   lda #$c9
   sta sprite,x
   inx
-  lda #%01000010
+  lda execPlayerPalette
+  ora #%01000000
   sta sprite,x
   inx
   lda stoneX
@@ -627,7 +699,8 @@ SetStoneSkip:
   lda #$c9
   sta sprite,x
   inx
-  lda #%10000010
+  lda execPlayerPalette
+  ora #%10000000
   sta sprite,x
   inx
   lda stoneX
@@ -643,7 +716,8 @@ SetStoneSkip:
   lda #$c9
   sta sprite,x
   inx
-  lda #%11000010
+  lda execPlayerPalette
+  ora #%11000000
   sta sprite,x
   inx
   lda stoneX
@@ -670,13 +744,13 @@ FinalizeSpriteBreak:
   stx spriteIndex
   rts
 
-ReadController1:
-  lda controller1
-  sta controller1Prev
+ReadController:
   lda #$01
   sta $4016
   lsr a
   sta $4016
+  lda controller1
+  sta controller1Prev
   lda $4016
   lsr a
   rol controller1
@@ -705,6 +779,36 @@ ReadController1:
   eor #$ff
   and controller1
   sta controller1RisingEdge
+  lda controller2
+  sta controller2Prev
+  lda $4017
+  lsr a
+  rol controller2
+  lda $4017
+  lsr a
+  rol controller2
+  lda $4017
+  lsr a
+  rol controller2
+  lda $4017
+  lsr a
+  rol controller2
+  lda $4017
+  lsr a
+  rol controller2
+  lda $4017
+  lsr a
+  rol controller2
+  lda $4017
+  lsr a
+  rol controller2
+  lda $4017
+  lsr a
+  rol controller2
+  lda controller2Prev
+  eor #$ff
+  and controller2
+  sta controller2RisingEdge
   rts
 
 Sleep:
