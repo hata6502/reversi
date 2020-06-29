@@ -40,6 +40,7 @@ execPlayerPalette               .rs $01
 execPlayerSetSE                 .rs $02
 execPlayerSoundAddress          .rs $02
 execPlayerSoundTimer            .rs $01
+frameCount                      .rs $01
 frameProceeded                  .rs $01
 gameMode                        .rs $01
 ppuAddress                      .rs $02
@@ -457,69 +458,16 @@ GameLoop:
   jsr WaitFrameProceeded
   jsr ReadController
 
-  lda #cellSetBlack
-  sta execPlayerCell
-  lda controller1RisingEdge
-  sta execPlayerControllerRisingEdge
-  lda #low(SetBlackSE)
-  sta execPlayerSetSE
-  lda #high(SetBlackSE)
-  sta execPlayerSetSE + 1
-  lda #$03
-  sta execPlayerPalette
-  lda cursor1X
-  sta execPlayerCursorX
-  lda cursor1Y
-  sta execPlayerCursorY
-  lda soundCh1Timer
-  sta execPlayerSoundTimer
-  lda soundCh1Address
-  sta execPlayerSoundAddress
-  lda soundCh1Address + 1
-  sta execPlayerSoundAddress + 1
-  jsr ExecPlayer
-  lda execPlayerCursorX
-  sta cursor1X
-  lda execPlayerCursorY
-  sta cursor1Y
-  lda execPlayerSoundTimer
-  sta soundCh1Timer
-  lda execPlayerSoundAddress
-  sta soundCh1Address
-  lda execPlayerSoundAddress + 1
-  sta soundCh1Address + 1
-
-  lda #cellSetWhite
-  sta execPlayerCell
-  lda controller2RisingEdge
-  sta execPlayerControllerRisingEdge
-  lda #low(SetWhiteSE)
-  sta execPlayerSetSE
-  lda #high(SetWhiteSE)
-  sta execPlayerSetSE + 1
-  lda #$00
-  sta execPlayerPalette
-  lda cursor2X
-  sta execPlayerCursorX
-  lda cursor2Y
-  sta execPlayerCursorY
-  lda soundCh2Timer
-  sta execPlayerSoundTimer
-  lda soundCh2Address
-  sta execPlayerSoundAddress
-  lda soundCh2Address + 1
-  sta execPlayerSoundAddress + 1
-  jsr ExecPlayer
-  lda execPlayerCursorX
-  sta cursor2X
-  lda execPlayerCursorY
-  sta cursor2Y
-  lda execPlayerSoundTimer
-  sta soundCh2Timer
-  lda execPlayerSoundAddress
-  sta soundCh2Address
-  lda execPlayerSoundAddress + 1
-  sta soundCh2Address + 1
+  lda frameCount
+  and #%00000001
+  bne ExecPlayer2First
+  jsr ExecPlayer1
+  jsr ExecPlayer2
+  jmp ExecPlayerFirstBreak
+ExecPlayer2First:
+  jsr ExecPlayer2
+  jsr ExecPlayer1
+ExecPlayerFirstBreak:
 
   ldx #0
 TurnStoneLoop:
@@ -726,6 +674,74 @@ SetStoneSkip:
   sta sprite,x
   inx
   stx spriteIndex
+  rts
+
+ExecPlayer1:
+  lda #cellSetBlack
+  sta execPlayerCell
+  lda controller1RisingEdge
+  sta execPlayerControllerRisingEdge
+  lda #low(SetBlackSE)
+  sta execPlayerSetSE
+  lda #high(SetBlackSE)
+  sta execPlayerSetSE + 1
+  lda #$03
+  sta execPlayerPalette
+  lda cursor1X
+  sta execPlayerCursorX
+  lda cursor1Y
+  sta execPlayerCursorY
+  lda soundCh1Timer
+  sta execPlayerSoundTimer
+  lda soundCh1Address
+  sta execPlayerSoundAddress
+  lda soundCh1Address + 1
+  sta execPlayerSoundAddress + 1
+  jsr ExecPlayer
+  lda execPlayerCursorX
+  sta cursor1X
+  lda execPlayerCursorY
+  sta cursor1Y
+  lda execPlayerSoundTimer
+  sta soundCh1Timer
+  lda execPlayerSoundAddress
+  sta soundCh1Address
+  lda execPlayerSoundAddress + 1
+  sta soundCh1Address + 1
+  rts
+
+ExecPlayer2:
+  lda #cellSetWhite
+  sta execPlayerCell
+  lda controller2RisingEdge
+  sta execPlayerControllerRisingEdge
+  lda #low(SetWhiteSE)
+  sta execPlayerSetSE
+  lda #high(SetWhiteSE)
+  sta execPlayerSetSE + 1
+  lda #$00
+  sta execPlayerPalette
+  lda cursor2X
+  sta execPlayerCursorX
+  lda cursor2Y
+  sta execPlayerCursorY
+  lda soundCh2Timer
+  sta execPlayerSoundTimer
+  lda soundCh2Address
+  sta execPlayerSoundAddress
+  lda soundCh2Address + 1
+  sta execPlayerSoundAddress + 1
+  jsr ExecPlayer
+  lda execPlayerCursorX
+  sta cursor2X
+  lda execPlayerCursorY
+  sta cursor2Y
+  lda execPlayerSoundTimer
+  sta soundCh2Timer
+  lda execPlayerSoundAddress
+  sta soundCh2Address
+  lda execPlayerSoundAddress + 1
+  sta soundCh2Address + 1
   rts
 
 FinalizeSprite:
@@ -971,7 +987,6 @@ VBlank:
   bne VBlankFrameProcess
   jmp VBlankFrameProcessSkip
 VBlankFrameProcess:
-
   lda #high(sprite)
   sta $4014
 
@@ -1018,6 +1033,7 @@ WritePpuBreak:
 
   lda #$04
   sta spriteIndex
+  inc frameCount
 VBlankFrameProcessSkip:
 
 PlaySoundCh1Loop:
