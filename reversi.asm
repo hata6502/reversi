@@ -383,6 +383,16 @@ LoadGameWriteRightBorderLoop:
   bne LoadGameWriteRightBorderLoop
   stx bgBufferIndex
 
+  jsr WaitFrameProceeded
+  ldx bgBufferIndex
+WriteInitialStatusLoop:
+  lda StatusBg,x
+  sta bgBuffer,x
+  inx
+  cpx #34
+  bne WriteInitialStatusLoop
+  stx bgBufferIndex
+
   lda #$a3
   sta stoneChar
   lda #3
@@ -1113,6 +1123,14 @@ TurnStonesDirection:
   .db $01, $09, $08, $07, $ff, $f7, $f8, $f9
 
 Palette:  .incbin "palette.dat"
+StatusBg:
+  .db $20, $9d, 2 + %10000000, $83, $93
+  .db $21, $3d, 1 + %10000000, $68
+  .db $21, $1e, 2 + %10000000, $8b, $9b
+  .db $21, $9c, 2 + %10000000, $89, $99
+  .db $22, $1e, 2 + %10000000, $8c, $9c
+  .db $22, $9c, 2 + %10000000, $8a, $9a
+  .db $23, $1e, 2 + %10000000, $8c, $9c
 StoneChars:
   .db $a0, $a0, $a0, $a0, $a0, $a0, $a0, $a0
   .db $a3, $a3, $d3, $dc, $d6, $a6, $a6, $a6
