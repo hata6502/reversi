@@ -20,8 +20,14 @@ controllerSelect  .equ $20
 controllerStart   .equ $10
 controllerUp      .equ $08
 
+gameModeBeginner      .equ 0
+gameModeIntermediate  .equ 1
+gameModeAdvanced      .equ 2
+gameMode2Players      .equ 3
+
   .rsset $00
 bgBufferIndex                   .rs $01
+blackCount                      .rs $01
 controller1                     .rs $01
 controller1Prev                 .rs $01
 controller1RisingEdge           .rs $01
@@ -40,6 +46,7 @@ execPlayerPalette               .rs $01
 execPlayerSetSE                 .rs $02
 execPlayerSoundAddress          .rs $02
 execPlayerSoundTimer            .rs $01
+execPlayerStoneCount            .rs $01
 frameCount                      .rs $01
 frameProceeded                  .rs $01
 gameMode                        .rs $01
@@ -62,6 +69,7 @@ turnStonesPrevIndex             .rs $01
 turnStonesPrevIndexPartial      .rs $01
 turnStonesStartIndex            .rs $01
 turnStonesWriteAnimation        .rs $01
+whiteCount                      .rs $01
 
   .rsset $0200
 sprite  .rs $ff
@@ -205,10 +213,6 @@ TitleLoop:
   jsr ReadController
 
   lda controller1RisingEdge
-  and #controllerStart
-  bne TitleBreak
-
-  lda controller1RisingEdge
   and #controllerSelect
   beq selectGameSkip
   inc gameMode
@@ -239,6 +243,11 @@ selectGameSkip:
   stx spriteIndex
 
   jsr FinalizeSprite
+
+  lda controller1RisingEdge
+  and #controllerStart
+  bne TitleBreak
+
   jmp TitleLoop
 TitleBreak:
 
@@ -291,6 +300,29 @@ ClearTitleWriteLoop:
   sta ppuAddress + 1
   cmp #$24
   bne ClearTitleLoop
+
+  ldx #0
+  lda #cellBlank
+InitializeBoardLoop:
+  sta board,x
+  inx
+  cpx #8*8
+  bne InitializeBoardLoop
+  lda #cellWhite
+  sta board + 3 + 3*8
+  sta board + 4 + 4*8
+  lda #cellBlack
+  sta board + 4 + 3*8
+  sta board + 3 + 4*8
+  lda #3
+  sta cursor1X
+  sta cursor1Y
+  lda #4
+  sta cursor2X
+  sta cursor2Y
+  lda #2
+  sta blackCount
+  sta whiteCount
 
   lda #$00
   sta stoneY
@@ -389,9 +421,49 @@ WriteInitialStatusLoop:
   lda StatusBg,x
   sta bgBuffer,x
   inx
-  cpx #34
+  cpx #29
   bne WriteInitialStatusLoop
+  lda gameMode
+  asl a
+  asl a
+  tay
+  lda #$20
+  sta bgBuffer,x
+  inx
+  lda #$9c
+  sta bgBuffer,x
+  inx
+  lda #2 + %10000000
+  sta bgBuffer,x
+  inx
+  lda gameModeChars,y
+  iny
+  sta bgBuffer,x
+  inx
+  lda gameModeChars,y
+  iny
+  sta bgBuffer,x
+  inx
+  lda #$20
+  sta bgBuffer,x
+  inx
+  lda #$9d
+  sta bgBuffer,x
+  inx
+  lda #2 + %10000000
+  sta bgBuffer,x
+  inx
+  lda gameModeChars,y
+  iny
+  sta bgBuffer,x
+  inx
+  lda gameModeChars,y
+  iny
+  sta bgBuffer,x
+  inx
   stx bgBufferIndex
+  jsr WriteBlackCount
+  jsr WriteWhiteCount
 
   lda #$a3
   sta stoneChar
@@ -443,41 +515,20 @@ WriteInitialStatusLoop:
   ldx #30
   jsr Sleep
 
-  ldx #0
-  lda cellBlank
-InitializeBoardLoop:
-  sta board,x
-  inx
-  cpx #8*8
-  bne InitializeBoardLoop
-  lda #cellWhite
-  sta board + 3 + 3*8
-  sta board + 4 + 4*8
-  lda #cellBlack
-  sta board + 4 + 3*8
-  sta board + 3 + 4*8
-
-  lda #3
-  sta cursor1X
-  sta cursor1Y
-  lda #4
-  sta cursor2X
-  sta cursor2Y
-
 GameLoop:
   jsr WaitFrameProceeded
   jsr ReadController
 
   lda frameCount
   and #%00000001
-  bne ExecPlayer2First
-  jsr ExecPlayer1
-  jsr ExecPlayer2
-  jmp ExecPlayerFirstBreak
-ExecPlayer2First:
-  jsr ExecPlayer2
-  jsr ExecPlayer1
-ExecPlayerFirstBreak:
+  bne ExecFrameRule
+  jsr ExecBlack
+  jsr ExecWhite
+  jmp ExecFrameRuleBreak
+ExecFrameRule:
+  jsr ExecWhite
+  jsr ExecBlack
+ExecFrameRuleBreak:
 
   ldx #0
 TurnStoneLoop:
@@ -522,6 +573,18 @@ Abs:
   clc
   adc #$01
 AbsInvertSkip:
+  rts
+
+Decimal:
+  ldy #0
+DecimalLoop:
+  cmp #10
+  bmi DecimalBreak
+  sec
+  sbc #10
+  iny
+  jmp DecimalLoop
+DecimalBreak:
   rts
 
 ExecPlayer:
@@ -686,7 +749,7 @@ SetStoneSkip:
   stx spriteIndex
   rts
 
-ExecPlayer1:
+ExecBlack:
   lda #cellSetBlack
   sta execPlayerCell
   lda controller1RisingEdge
@@ -707,7 +770,11 @@ ExecPlayer1:
   sta execPlayerSoundAddress
   lda soundCh1Address + 1
   sta execPlayerSoundAddress + 1
+  lda blackCount
+  sta execPlayerStoneCount
+
   jsr ExecPlayer
+
   lda execPlayerCursorX
   sta cursor1X
   lda execPlayerCursorY
@@ -718,9 +785,16 @@ ExecPlayer1:
   sta soundCh1Address
   lda execPlayerSoundAddress + 1
   sta soundCh1Address + 1
+  ldx blackCount
+  lda execPlayerStoneCount
+  sta blackCount
+  cpx blackCount
+  beq ExecBlackWriteCountSkip
+  jsr WriteBlackCount
+ExecBlackWriteCountSkip:
   rts
 
-ExecPlayer2:
+ExecWhite:
   lda #cellSetWhite
   sta execPlayerCell
   lda controller2RisingEdge
@@ -741,7 +815,11 @@ ExecPlayer2:
   sta execPlayerSoundAddress
   lda soundCh2Address + 1
   sta execPlayerSoundAddress + 1
+  lda whiteCount
+  sta execPlayerStoneCount
+
   jsr ExecPlayer
+
   lda execPlayerCursorX
   sta cursor2X
   lda execPlayerCursorY
@@ -752,6 +830,13 @@ ExecPlayer2:
   sta soundCh2Address
   lda execPlayerSoundAddress + 1
   sta soundCh2Address + 1
+  ldx whiteCount
+  lda execPlayerStoneCount
+  sta whiteCount
+  cpx whiteCount
+  beq ExecWhiteWriteCountSkip
+  jsr WriteWhiteCount
+ExecWhiteWriteCountSkip:
   rts
 
 FinalizeSprite:
@@ -904,6 +989,7 @@ TurnStonesWriteLoop:
   clc
   adc turnStonesWriteAnimation
   sta board,x
+  inc execPlayerStoneCount
   inc turnStonesCount
   inc turnStonesWriteAnimation
   jmp TurnStonesWriteLoop
@@ -922,6 +1008,37 @@ WaitFrameProceeded:
 WaitFrameProceededLoop:
   lda frameProceeded
   bne WaitFrameProceededLoop
+  rts
+
+WriteBlackCount:
+  ldx bgBufferIndex
+  lda #$22
+  sta bgBuffer,x
+  inx
+  lda #$3c
+  sta bgBuffer,x
+  inx
+  lda #$02
+  sta bgBuffer,x
+  inx
+  lda blackCount
+  jsr WriteDecimal
+  stx bgBufferIndex
+  rts
+
+WriteDecimal:
+  jsr Decimal
+  pha
+  tya
+  clc
+  adc #'0'
+  sta bgBuffer,x
+  inx
+  pla
+  clc
+  adc #'0'
+  sta bgBuffer,x
+  inx
   rts
 
 WriteStone:
@@ -983,6 +1100,22 @@ WriteStoneLoop:
   iny
   cpy #3
   bne WriteStoneLoop
+  stx bgBufferIndex
+  rts
+
+WriteWhiteCount:
+  ldx bgBufferIndex
+  lda #$23
+  sta bgBuffer,x
+  inx
+  lda #$3c
+  sta bgBuffer,x
+  inx
+  lda #$02
+  sta bgBuffer,x
+  inx
+  lda whiteCount
+  jsr WriteDecimal
   stx bgBufferIndex
   rts
 
@@ -1122,9 +1255,13 @@ PlaySoundCh2Break:
 TurnStonesDirection:
   .db $01, $09, $08, $07, $ff, $f7, $f8, $f9
 
+gameModeChars:
+  .db $80, $90, $83, $93
+  .db $81, $91, $83, $93
+  .db $82, $92, $83, $93
+  .db $00, '2', $86, $96
 Palette:  .incbin "palette.dat"
 StatusBg:
-  .db $20, $9d, 2 + %10000000, $83, $93
   .db $21, $3d, 1 + %10000000, $68
   .db $21, $1e, 2 + %10000000, $8b, $9b
   .db $21, $9c, 2 + %10000000, $89, $99
