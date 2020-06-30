@@ -8,6 +8,7 @@ cellBlank         .equ $00
 cellWhite         .equ $80
 cellBlackToWhite  .equ cellWhite + 8*4
 cellSetBlack      .equ cellBlack + 8
+cellSetBlank      .equ cellBlank + 8
 cellSetWhite      .equ cellWhite + 8
 cellWhiteToBlack  .equ cellBlack + 8*4
 
@@ -46,7 +47,6 @@ execPlayerPalette               .rs $01
 execPlayerSetSE                 .rs $02
 execPlayerSoundAddress          .rs $02
 execPlayerSoundTimer            .rs $01
-execPlayerStoneCount            .rs $01
 frameCount                      .rs $01
 frameProceeded                  .rs $01
 gameMode                        .rs $01
@@ -302,47 +302,13 @@ ClearTitleWriteLoop:
   bne ClearTitleLoop
 
   ldx #0
-  lda #cellBlank
+  lda #cellSetBlank
 InitializeBoardLoop:
   sta board,x
   inx
   cpx #8*8
   bne InitializeBoardLoop
-  lda #cellWhite
-  sta board + 3 + 3*8
-  sta board + 4 + 4*8
-  lda #cellBlack
-  sta board + 4 + 3*8
-  sta board + 3 + 4*8
-  lda #3
-  sta cursor1X
-  sta cursor1Y
-  lda #4
-  sta cursor2X
-  sta cursor2Y
-  lda #2
-  sta blackCount
-  sta whiteCount
-
-  lda #$00
-  sta stoneY
-  lda #$a0
-  sta stoneChar
-LoadGameWriteBoardYLoop:
-  lda #$00
-  sta stoneX
-LoadGameWriteBoardXLoop:
-  lda stoneX
-  and #%00000011
-  jsr WriteStone
-  inc stoneX
-  lda stoneX
-  cmp #8
-  bne LoadGameWriteBoardXLoop
-  inc stoneY
-  lda stoneY
-  cmp #8
-  bne LoadGameWriteBoardYLoop
+  jsr WriteBoard
 
   jsr WaitFrameProceeded
   ldx #$00
@@ -462,58 +428,62 @@ WriteInitialStatusLoop:
   sta bgBuffer,x
   inx
   stx bgBufferIndex
-  jsr WriteBlackCount
-  jsr WriteWhiteCount
 
-  lda #$a3
-  sta stoneChar
+  lda #cellSetBlack
+  sta board + 4 + 3*8
+  jsr UpdateStoneCount
+  jsr WriteBoard
+  lda SetBlackSE
+  sta soundCh1Timer
+  lda #low(SetBlackSE + 1)
+  sta soundCh1Address
+  lda #high(SetBlackSE + 1)
+  sta soundCh1Address + 1
+  ldx #30
+  jsr Sleep
+  lda #cellSetBlack
+  sta board + 3 + 4*8
+  jsr UpdateStoneCount
+  jsr WriteBoard
+  lda SetBlackSE
+  sta soundCh1Timer
+  lda #low(SetBlackSE + 1)
+  sta soundCh1Address
+  lda #high(SetBlackSE + 1)
+  sta soundCh1Address + 1
+  ldx #30
+  jsr Sleep
+  lda #cellSetWhite
+  sta board + 3 + 3*8
+  jsr UpdateStoneCount
+  jsr WriteBoard
+  lda SetWhiteSE
+  sta soundCh2Timer
+  lda #low(SetWhiteSE + 1)
+  sta soundCh2Address
+  lda #high(SetWhiteSE + 1)
+  sta soundCh2Address + 1
+  ldx #30
+  jsr Sleep
+  lda #cellSetWhite
+  sta board + 4 + 4*8
+  jsr UpdateStoneCount
+  jsr WriteBoard
+  lda SetWhiteSE
+  sta soundCh2Timer
+  lda #low(SetWhiteSE + 1)
+  sta soundCh2Address
+  lda #high(SetWhiteSE + 1)
+  sta soundCh2Address + 1
+  ldx #30
+  jsr Sleep
+
   lda #3
-  sta stoneX
+  sta cursor1X
+  sta cursor1Y
   lda #4
-  sta stoneY
-  jsr WriteStone
-  lda SetBlackSE
-  sta soundCh1Timer
-  lda #low(SetBlackSE + 1)
-  sta soundCh1Address
-  lda #high(SetBlackSE + 1)
-  sta soundCh1Address + 1
-  ldx #30
-  jsr Sleep
-  inc stoneX
-  dec stoneY
-  jsr WriteStone
-  lda SetBlackSE
-  sta soundCh1Timer
-  lda #low(SetBlackSE + 1)
-  sta soundCh1Address
-  lda #high(SetBlackSE + 1)
-  sta soundCh1Address + 1
-  ldx #30
-  jsr Sleep
-  lda #$a6
-  sta stoneChar
-  dec stoneX
-  jsr WriteStone
-  lda SetWhiteSE
-  sta soundCh2Timer
-  lda #low(SetWhiteSE + 1)
-  sta soundCh2Address
-  lda #high(SetWhiteSE + 1)
-  sta soundCh2Address + 1
-  ldx #30
-  jsr Sleep
-  inc stoneX
-  inc stoneY
-  jsr WriteStone
-  lda SetWhiteSE
-  sta soundCh2Timer
-  lda #low(SetWhiteSE + 1)
-  sta soundCh2Address
-  lda #high(SetWhiteSE + 1)
-  sta soundCh2Address + 1
-  ldx #30
-  jsr Sleep
+  sta cursor2X
+  sta cursor2Y
 
 GameLoop:
   jsr WaitFrameProceeded
@@ -530,39 +500,7 @@ ExecFrameRule:
   jsr ExecBlack
 ExecFrameRuleBreak:
 
-  ldx #0
-TurnStoneLoop:
-  lda board,x
-  and #%00111111
-  beq TurnStoneSkip
-  and #%00000111
-  bne TurnStoneWriteSkip
-  lda board,x
-  lsr a
-  lsr a
-  lsr a
-  tay
-  lda StoneChars,y
-  sta stoneChar
-  txa
-  and #7
-  sta stoneX
-  txa
-  pha
-  lsr a
-  lsr a
-  lsr a
-  sta stoneY
-  jsr WriteStone
-  pla
-  tax
-TurnStoneWriteSkip:
-  dec board,x
-TurnStoneSkip:
-  inx
-  cpx #8*8
-  bne TurnStoneLoop
-
+  jsr WriteBoard
   jsr FinalizeSprite
   jmp GameLoop
 
@@ -585,6 +523,42 @@ DecimalLoop:
   iny
   jmp DecimalLoop
 DecimalBreak:
+  rts
+
+ExecBlack:
+  lda #cellSetBlack
+  sta execPlayerCell
+  lda controller1RisingEdge
+  sta execPlayerControllerRisingEdge
+  lda #low(SetBlackSE)
+  sta execPlayerSetSE
+  lda #high(SetBlackSE)
+  sta execPlayerSetSE + 1
+  lda #$03
+  sta execPlayerPalette
+  lda cursor1X
+  sta execPlayerCursorX
+  lda cursor1Y
+  sta execPlayerCursorY
+  lda soundCh1Timer
+  sta execPlayerSoundTimer
+  lda soundCh1Address
+  sta execPlayerSoundAddress
+  lda soundCh1Address + 1
+  sta execPlayerSoundAddress + 1
+
+  jsr ExecPlayer
+
+  lda execPlayerCursorX
+  sta cursor1X
+  lda execPlayerCursorY
+  sta cursor1Y
+  lda execPlayerSoundTimer
+  sta soundCh1Timer
+  lda execPlayerSoundAddress
+  sta soundCh1Address
+  lda execPlayerSoundAddress + 1
+  sta soundCh1Address + 1
   rts
 
 ExecPlayer:
@@ -637,6 +611,7 @@ MoveCursorDownSkip:
   tax
   lda turnStonesCount
   beq SetStoneRestore
+  jsr UpdateStoneCount
   ldy #$00
   lda [execPlayerSetSE],y
   sta execPlayerSoundTimer
@@ -749,51 +724,6 @@ SetStoneSkip:
   stx spriteIndex
   rts
 
-ExecBlack:
-  lda #cellSetBlack
-  sta execPlayerCell
-  lda controller1RisingEdge
-  sta execPlayerControllerRisingEdge
-  lda #low(SetBlackSE)
-  sta execPlayerSetSE
-  lda #high(SetBlackSE)
-  sta execPlayerSetSE + 1
-  lda #$03
-  sta execPlayerPalette
-  lda cursor1X
-  sta execPlayerCursorX
-  lda cursor1Y
-  sta execPlayerCursorY
-  lda soundCh1Timer
-  sta execPlayerSoundTimer
-  lda soundCh1Address
-  sta execPlayerSoundAddress
-  lda soundCh1Address + 1
-  sta execPlayerSoundAddress + 1
-  lda blackCount
-  sta execPlayerStoneCount
-
-  jsr ExecPlayer
-
-  lda execPlayerCursorX
-  sta cursor1X
-  lda execPlayerCursorY
-  sta cursor1Y
-  lda execPlayerSoundTimer
-  sta soundCh1Timer
-  lda execPlayerSoundAddress
-  sta soundCh1Address
-  lda execPlayerSoundAddress + 1
-  sta soundCh1Address + 1
-  ldx blackCount
-  lda execPlayerStoneCount
-  sta blackCount
-  cpx blackCount
-  beq ExecBlackWriteCountSkip
-  jsr WriteBlackCount
-ExecBlackWriteCountSkip:
-  rts
-
 ExecWhite:
   lda #cellSetWhite
   sta execPlayerCell
@@ -815,8 +745,6 @@ ExecWhite:
   sta execPlayerSoundAddress
   lda soundCh2Address + 1
   sta execPlayerSoundAddress + 1
-  lda whiteCount
-  sta execPlayerStoneCount
 
   jsr ExecPlayer
 
@@ -830,13 +758,6 @@ ExecWhite:
   sta soundCh2Address
   lda execPlayerSoundAddress + 1
   sta soundCh2Address + 1
-  ldx whiteCount
-  lda execPlayerStoneCount
-  sta whiteCount
-  cpx whiteCount
-  beq ExecWhiteWriteCountSkip
-  jsr WriteWhiteCount
-ExecWhiteWriteCountSkip:
   rts
 
 FinalizeSprite:
@@ -928,6 +849,41 @@ Sleep:
   bne Sleep
   rts
 
+WriteBoard:
+  ldx #0
+WriteBoardLoop:
+  lda board,x
+  and #%00111111
+  beq WriteBoardSkip
+  and #%00000111
+  bne WriteBoardWriteSkip
+  lda board,x
+  lsr a
+  lsr a
+  lsr a
+  tay
+  lda StoneChars,y
+  sta stoneChar
+  txa
+  and #7
+  sta stoneX
+  txa
+  pha
+  lsr a
+  lsr a
+  lsr a
+  sta stoneY
+  jsr WriteStone
+  pla
+  tax
+WriteBoardWriteSkip:
+  dec board,x
+WriteBoardSkip:
+  inx
+  cpx #8*8
+  bne WriteBoardLoop
+  rts
+
 TurnStones:
   lda board,x
   and #%11000000
@@ -989,7 +945,6 @@ TurnStonesWriteLoop:
   clc
   adc turnStonesWriteAnimation
   sta board,x
-  inc execPlayerStoneCount
   inc turnStonesCount
   inc turnStonesWriteAnimation
   jmp TurnStonesWriteLoop
@@ -1010,7 +965,26 @@ WaitFrameProceededLoop:
   bne WaitFrameProceededLoop
   rts
 
-WriteBlackCount:
+UpdateStoneCount:
+  ldx #0
+  stx blackCount
+  stx whiteCount
+UpdateStoneCountLoop:
+  lda board,x
+  and #%11000000
+  tay
+  cpy #cellBlack
+  bne UpdateStoneCountBlackSkip
+  inc blackCount
+UpdateStoneCountBlackSkip:
+  cpy #cellWhite
+  bne UpdateStoneCountWhiteSkip
+  inc whiteCount
+UpdateStoneCountWhiteSkip:
+  inx
+  cpx #8*8
+  bne UpdateStoneCountLoop
+
   ldx bgBufferIndex
   lda #$22
   sta bgBuffer,x
@@ -1022,6 +996,17 @@ WriteBlackCount:
   sta bgBuffer,x
   inx
   lda blackCount
+  jsr WriteDecimal
+  lda #$23
+  sta bgBuffer,x
+  inx
+  lda #$3c
+  sta bgBuffer,x
+  inx
+  lda #$02
+  sta bgBuffer,x
+  inx
+  lda whiteCount
   jsr WriteDecimal
   stx bgBufferIndex
   rts
@@ -1100,22 +1085,6 @@ WriteStoneLoop:
   iny
   cpy #3
   bne WriteStoneLoop
-  stx bgBufferIndex
-  rts
-
-WriteWhiteCount:
-  ldx bgBufferIndex
-  lda #$23
-  sta bgBuffer,x
-  inx
-  lda #$3c
-  sta bgBuffer,x
-  inx
-  lda #$02
-  sta bgBuffer,x
-  inx
-  lda whiteCount
-  jsr WriteDecimal
   stx bgBufferIndex
   rts
 
