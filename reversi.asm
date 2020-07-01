@@ -29,6 +29,7 @@ gameMode2Players      .equ 3
   .rsset $00
 bgBufferIndex                   .rs $01
 blackCount                      .rs $01
+blackPass                       .rs $01
 controller1                     .rs $01
 controller1Prev                 .rs $01
 controller1RisingEdge           .rs $01
@@ -64,12 +65,14 @@ stoneChar                       .rs $01
 titleAddress                    .rs $02
 turnStonesCell                  .rs $01
 turnStonesCount                 .rs $01
+turnStonesDryRun                .rs $01
 turnStonesEndIndex              .rs $01
 turnStonesPrevIndex             .rs $01
 turnStonesPrevIndexPartial      .rs $01
 turnStonesStartIndex            .rs $01
 turnStonesWriteAnimation        .rs $01
 whiteCount                      .rs $01
+whitePass                       .rs $01
 
   .rsset $0200
 sprite  .rs $ff
@@ -431,7 +434,6 @@ WriteInitialStatusLoop:
 
   lda #cellSetBlack
   sta board + 4 + 3*8
-  jsr UpdateStoneCount
   jsr WriteBoard
   lda SetBlackSE
   sta soundCh1Timer
@@ -443,7 +445,6 @@ WriteInitialStatusLoop:
   jsr Sleep
   lda #cellSetBlack
   sta board + 3 + 4*8
-  jsr UpdateStoneCount
   jsr WriteBoard
   lda SetBlackSE
   sta soundCh1Timer
@@ -455,7 +456,6 @@ WriteInitialStatusLoop:
   jsr Sleep
   lda #cellSetWhite
   sta board + 3 + 3*8
-  jsr UpdateStoneCount
   jsr WriteBoard
   lda SetWhiteSE
   sta soundCh2Timer
@@ -467,7 +467,6 @@ WriteInitialStatusLoop:
   jsr Sleep
   lda #cellSetWhite
   sta board + 4 + 4*8
-  jsr UpdateStoneCount
   jsr WriteBoard
   lda SetWhiteSE
   sta soundCh2Timer
@@ -477,6 +476,7 @@ WriteInitialStatusLoop:
   sta soundCh2Address + 1
   ldx #30
   jsr Sleep
+  jsr UpdateStatus
 
   lda #3
   sta cursor1X
@@ -603,15 +603,20 @@ MoveCursorDownSkip:
   cmp #cellBlank
   bne SetStoneError
   lda execPlayerCell
-  sta board,x
+  and #%11000000
+  sta turnStonesCell
+  lda #$00
+  sta turnStonesDryRun
   txa
   pha
   jsr TurnStones
   pla
   tax
   lda turnStonesCount
-  beq SetStoneRestore
-  jsr UpdateStoneCount
+  beq SetStoneError
+  lda execPlayerCell
+  sta board,x
+  jsr UpdateStatus
   ldy #$00
   lda [execPlayerSetSE],y
   sta execPlayerSoundTimer
@@ -623,9 +628,6 @@ MoveCursorDownSkip:
   adc #$00
   sta execPlayerSoundAddress + 1
   jmp SetStoneSkip
-SetStoneRestore:
-  lda #cellBlank
-  sta board,x
 SetStoneError:
   lda ErrorSE
   sta execPlayerSoundTimer
@@ -885,9 +887,6 @@ WriteBoardSkip:
   rts
 
 TurnStones:
-  lda board,x
-  and #%11000000
-  sta turnStonesCell
   stx turnStonesStartIndex
   ldy #0
   sty turnStonesCount
@@ -941,10 +940,13 @@ TurnStonesWriteLoop:
   tax
   cpx turnStonesEndIndex
   beq TurnStonesCheckSkip
+  lda turnStonesDryRun
+  bne TurnStonesWriteSkip
   lda turnStonesCell
   clc
   adc turnStonesWriteAnimation
   sta board,x
+TurnStonesWriteSkip:
   inc turnStonesCount
   inc turnStonesWriteAnimation
   jmp TurnStonesWriteLoop
@@ -954,7 +956,9 @@ TurnStonesCellSkip:
 TurnStonesCheckSkip:
   iny
   cpy #8
-  bne TurnStonesDirectionLoop
+  beq TurnStonesDirectionBreak
+  jmp TurnStonesDirectionLoop
+TurnStonesDirectionBreak:
   rts
 
 WaitFrameProceeded:
@@ -965,27 +969,146 @@ WaitFrameProceededLoop:
   bne WaitFrameProceededLoop
   rts
 
-UpdateStoneCount:
+UpdateStatus:
+  lda #0
+  sta blackCount
+  sta whiteCount
+  lda #$01
+  sta blackPass
+  sta whitePass
+  sta turnStonesDryRun
   ldx #0
-  stx blackCount
-  stx whiteCount
-UpdateStoneCountLoop:
+UpdateStatusBoardLoop:
   lda board,x
   and #%11000000
-  tay
-  cpy #cellBlack
-  bne UpdateStoneCountBlackSkip
+  cmp #cellBlank
+  bne UpdateStatusBlankSkip
+  lda blackPass
+  beq UpdateStatusBlackPassSkip
+  lda #cellBlack
+  sta turnStonesCell
+  txa
+  pha
+  jsr TurnStones
+  pla
+  tax
+  lda turnStonesCount
+  beq UpdateStatusBlackPassSkip
+  lda #$00
+  sta blackPass
+UpdateStatusBlackPassSkip:
+  lda whitePass
+  beq UpdateStatusWhitePassSkip
+  lda #cellWhite
+  sta turnStonesCell
+  txa
+  pha
+  jsr TurnStones
+  pla
+  tax
+  lda turnStonesCount
+  beq UpdateStatusWhitePassSkip
+  lda #$00
+  sta whitePass
+UpdateStatusWhitePassSkip:
+  jmp UpdateStatusCellBreak
+UpdateStatusBlankSkip:
+
+  cmp #cellBlack
+  bne UpdateStatusBlackSkip
   inc blackCount
-UpdateStoneCountBlackSkip:
-  cpy #cellWhite
-  bne UpdateStoneCountWhiteSkip
+  jmp UpdateStatusCellBreak
+UpdateStatusBlackSkip:
+
+  cmp #cellWhite
+  bne UpdateStatusWhiteSkip
   inc whiteCount
-UpdateStoneCountWhiteSkip:
+  jmp UpdateStatusCellBreak
+UpdateStatusWhiteSkip:
+UpdateStatusCellBreak:
+
   inx
   cpx #8*8
-  bne UpdateStoneCountLoop
+  bne UpdateStatusBoardLoop
 
   ldx bgBufferIndex
+
+  lda blackPass
+  asl a
+  asl a
+  tay
+  lda #$21
+  sta bgBuffer,x
+  inx
+  lda #$9d
+  sta bgBuffer,x
+  inx
+  lda #2 + %10000000
+  sta bgBuffer,x
+  inx
+  lda passChars,y
+  iny
+  sta bgBuffer,x
+  inx
+  lda passChars,y
+  iny
+  sta bgBuffer,x
+  inx
+  lda #$21
+  sta bgBuffer,x
+  inx
+  lda #$9e
+  sta bgBuffer,x
+  inx
+  lda #2 + %10000000
+  sta bgBuffer,x
+  inx
+  lda passChars,y
+  iny
+  sta bgBuffer,x
+  inx
+  lda passChars,y
+  iny
+  sta bgBuffer,x
+  inx
+  lda whitePass
+  asl a
+  asl a
+  tay
+  lda #$22
+  sta bgBuffer,x
+  inx
+  lda #$9d
+  sta bgBuffer,x
+  inx
+  lda #2 + %10000000
+  sta bgBuffer,x
+  inx
+  lda passChars,y
+  iny
+  sta bgBuffer,x
+  inx
+  lda passChars,y
+  iny
+  sta bgBuffer,x
+  inx
+  lda #$22
+  sta bgBuffer,x
+  inx
+  lda #$9e
+  sta bgBuffer,x
+  inx
+  lda #2 + %10000000
+  sta bgBuffer,x
+  inx
+  lda passChars,y
+  iny
+  sta bgBuffer,x
+  inx
+  lda passChars,y
+  iny
+  sta bgBuffer,x
+  inx
   lda #$22
   sta bgBuffer,x
   inx
@@ -1230,6 +1353,9 @@ gameModeChars:
   .db $82, $92, $83, $93
   .db $00, '2', $86, $96
 Palette:  .incbin "palette.dat"
+passChars:
+  .db $00, $00, $00, $00
+  .db $79, $69, $00, $6a
 StatusBg:
   .db $21, $3d, 1 + %10000000, $68
   .db $21, $1e, 2 + %10000000, $8b, $9b
