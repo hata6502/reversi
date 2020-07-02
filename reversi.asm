@@ -21,6 +21,9 @@ controllerSelect  .equ $20
 controllerStart   .equ $10
 controllerUp      .equ $08
 
+enableBlack .equ %00000001
+enableWhite .equ %00000010
+
 gameModeBeginner      .equ 0
 gameModeIntermediate  .equ 1
 gameModeAdvanced      .equ 2
@@ -40,6 +43,7 @@ cursor1X                        .rs $01
 cursor1Y                        .rs $01
 cursor2X                        .rs $01
 cursor2Y                        .rs $01
+enablePlayer                    .rs $01
 execPlayerCell                  .rs $01
 execPlayerControllerRisingEdge  .rs $01
 execPlayerCursorX               .rs $01
@@ -476,7 +480,6 @@ WriteInitialStatusLoop:
   sta soundCh2Address + 1
   ldx #30
   jsr Sleep
-  jsr UpdateStatus
 
   lda #3
   sta cursor1X
@@ -484,6 +487,9 @@ WriteInitialStatusLoop:
   lda #4
   sta cursor2X
   sta cursor2Y
+  lda #enableBlack
+  sta enablePlayer
+  jsr UpdateStatus
 
 GameLoop:
   jsr WaitFrameProceeded
@@ -526,6 +532,10 @@ DecimalBreak:
   rts
 
 ExecBlack:
+  lda enablePlayer
+  and #enableBlack
+  beq ExecBlackSkip
+
   lda #cellSetBlack
   sta execPlayerCell
   lda controller1RisingEdge
@@ -559,6 +569,8 @@ ExecBlack:
   sta soundCh1Address
   lda execPlayerSoundAddress + 1
   sta soundCh1Address + 1
+
+ExecBlackSkip:
   rts
 
 ExecPlayer:
@@ -616,6 +628,7 @@ MoveCursorDownSkip:
   beq SetStoneError
   lda execPlayerCell
   sta board,x
+  jsr TurnPlayer
   jsr UpdateStatus
   ldy #$00
   lda [execPlayerSetSE],y
@@ -727,6 +740,10 @@ SetStoneSkip:
   rts
 
 ExecWhite:
+  lda enablePlayer
+  and #enableWhite
+  beq ExecWhiteSkip
+
   lda #cellSetWhite
   sta execPlayerCell
   lda controller2RisingEdge
@@ -760,6 +777,8 @@ ExecWhite:
   sta soundCh2Address
   lda execPlayerSoundAddress + 1
   sta soundCh2Address + 1
+
+ExecWhiteSkip:
   rts
 
 FinalizeSprite:
@@ -884,6 +903,12 @@ WriteBoardSkip:
   inx
   cpx #8*8
   bne WriteBoardLoop
+  rts
+
+TurnPlayer:
+  lda enablePlayer
+  eor #enableBlack + enableWhite
+  sta enablePlayer
   rts
 
 TurnStones:
@@ -1031,7 +1056,56 @@ UpdateStatusCellBreak:
   cpx #8*8
   bne UpdateStatusBoardLoop
 
+  lda blackPass
+  beq passBlackSkip
+  lda enablePlayer
+  and #enableBlack
+  beq passBlackSkip
+  jsr TurnPlayer
+  lda SkipSE
+  sta soundCh1Timer
+  lda #low(SkipSE + 1)
+  sta soundCh1Address
+  lda #high(SkipSE + 1)
+  sta soundCh1Address + 1
+passBlackSkip:
+
+  lda whitePass
+  beq passWhiteSkip
+  lda enablePlayer
+  and #enableWhite
+  beq passWhiteSkip
+  jsr TurnPlayer
+  lda SkipSE
+  sta soundCh2Timer
+  lda #low(SkipSE + 1)
+  sta soundCh2Address
+  lda #high(SkipSE + 1)
+  sta soundCh2Address + 1
+passWhiteSkip:
+
   ldx bgBufferIndex
+
+  lda enablePlayer
+  asl a
+  tay
+  lda #$21
+  sta bgBuffer,x
+  inx
+  lda #$1c
+  sta bgBuffer,x
+  inx
+  lda #2 + %10000000
+  sta bgBuffer,x
+  inx
+  lda TurnChars,y
+  iny
+  sta bgBuffer,x
+  inx
+  lda TurnChars,y
+  iny
+  sta bgBuffer,x
+  inx
 
   lda blackPass
   asl a
@@ -1046,11 +1120,11 @@ UpdateStatusCellBreak:
   lda #2 + %10000000
   sta bgBuffer,x
   inx
-  lda passChars,y
+  lda PassChars,y
   iny
   sta bgBuffer,x
   inx
-  lda passChars,y
+  lda PassChars,y
   iny
   sta bgBuffer,x
   inx
@@ -1063,11 +1137,11 @@ UpdateStatusCellBreak:
   lda #2 + %10000000
   sta bgBuffer,x
   inx
-  lda passChars,y
+  lda PassChars,y
   iny
   sta bgBuffer,x
   inx
-  lda passChars,y
+  lda PassChars,y
   iny
   sta bgBuffer,x
   inx
@@ -1084,11 +1158,11 @@ UpdateStatusCellBreak:
   lda #2 + %10000000
   sta bgBuffer,x
   inx
-  lda passChars,y
+  lda PassChars,y
   iny
   sta bgBuffer,x
   inx
-  lda passChars,y
+  lda PassChars,y
   iny
   sta bgBuffer,x
   inx
@@ -1101,11 +1175,11 @@ UpdateStatusCellBreak:
   lda #2 + %10000000
   sta bgBuffer,x
   inx
-  lda passChars,y
+  lda PassChars,y
   iny
   sta bgBuffer,x
   inx
-  lda passChars,y
+  lda PassChars,y
   iny
   sta bgBuffer,x
   inx
@@ -1353,7 +1427,7 @@ gameModeChars:
   .db $82, $92, $83, $93
   .db $00, '2', $86, $96
 Palette:  .incbin "palette.dat"
-passChars:
+PassChars:
   .db $00, $00, $00, $00
   .db $79, $69, $00, $6a
 StatusBg:
@@ -1368,6 +1442,10 @@ StoneChars:
   .db $a3, $a3, $d3, $dc, $d6, $a6, $a6, $a6
   .db $a6, $a6, $d9, $dc, $d0, $a3, $a3, $a3
 Title:  .incbin "title.nam"
+TurnChars
+  .db $00, $00
+  .db $89, $99
+  .db $8a, $9a
 
 Notes:
   .dw 6821, 6429, 6079, 5766, 5430, 5131, 4821, 4584, 4302, 4052, 3830, 3631, 3410, 3232, 3039, 2882
@@ -1452,6 +1530,8 @@ ErrorSE:
   .db 15, $7f
   .db 0, 0
 SetBlackSE:
+  .db 0, $7f
+  .db 0, 72
   .db 0, 67 - 6
   .db 4, 71 - 6
   .db 12, $7f
@@ -1460,6 +1540,14 @@ SetWhiteSE:
   .db 0, 71 - 6
   .db 4, 67 - 6
   .db 12, $7f
+  .db 0, 0
+SkipSE:
+  .db 0, 72
+  .db 7, 74
+  .db 7, 75
+  .db 14, 65
+  .db 7, 67
+  .db 7, 68
   .db 0, 0
 StartSE:
   .db 0, $7f
