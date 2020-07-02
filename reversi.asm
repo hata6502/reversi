@@ -221,12 +221,12 @@ TitleLoop:
 
   lda controller1RisingEdge
   and #controllerSelect
-  beq selectGameSkip
+  beq SelectGameSkip
   inc gameMode
   lda gameMode
   and #$03
   sta gameMode
-selectGameSkip:
+SelectGameSkip:
 
   ldx spriteIndex
   lda gameMode
@@ -257,6 +257,14 @@ selectGameSkip:
 
   jmp TitleLoop
 TitleBreak:
+
+  ldx #enableBlack
+  lda controller1
+  and #controllerA
+  beq RealTimeModeSkip
+  ldx #enableBlack + enableWhite
+RealTimeModeSkip:
+  stx enablePlayer
 
   lda StartSE
   sta soundCh1Timer
@@ -487,8 +495,6 @@ WriteInitialStatusLoop:
   lda #4
   sta cursor2X
   sta cursor2Y
-  lda #enableBlack
-  sta enablePlayer
   jsr UpdateStatus
 
 GameLoop:
@@ -907,8 +913,11 @@ WriteBoardSkip:
 
 TurnPlayer:
   lda enablePlayer
+  cmp #enableBlack + enableWhite
+  beq TurnPlayerSkip
   eor #enableBlack + enableWhite
   sta enablePlayer
+TurnPlayerSkip:
   rts
 
 TurnStones:
@@ -1446,6 +1455,7 @@ TurnChars
   .db $00, $00
   .db $89, $99
   .db $8a, $9a
+  .db $00, '?'
 
 Notes:
   .dw 6821, 6429, 6079, 5766, 5430, 5131, 4821, 4584, 4302, 4052, 3830, 3631, 3410, 3232, 3039, 2882
