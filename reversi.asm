@@ -31,6 +31,7 @@ gameMode2Players      .equ 3
 
   .rsset $00
 bgBufferIndex                   .rs $01
+blackArrangeCount               .rs $01
 blackCount                      .rs $01
 blackPass                       .rs $01
 controller1                     .rs $01
@@ -75,6 +76,7 @@ turnStonesPrevIndex             .rs $01
 turnStonesPrevIndexPartial      .rs $01
 turnStonesStartIndex            .rs $01
 turnStonesWriteAnimation        .rs $01
+whiteArrangeCount               .rs $01
 whiteCount                      .rs $01
 whitePass                       .rs $01
 
@@ -316,14 +318,7 @@ ClearTitleWriteLoop:
   cmp #$24
   bne ClearTitleLoop
 
-  ldx #0
-  lda #cellSetBlank
-InitializeBoardLoop:
-  sta board,x
-  inx
-  cpx #8*8
-  bne InitializeBoardLoop
-  jsr WriteBoard
+  jsr InitializeBoard
 
   jsr WaitFrameProceeded
   ldx #$00
@@ -514,7 +509,97 @@ ExecFrameRuleBreak:
 
   jsr WriteBoard
   jsr FinalizeSprite
+
+  lda blackPass
+  beq GameEndSkip
+  lda whitePass
+  bne GameEnd
+GameEndSkip:
   jmp GameLoop
+
+GameEnd:
+  ldx #0
+GameEndWaitLoop:
+  txa
+  pha
+  jsr WaitFrameProceeded
+  jsr WriteBoard
+  jsr FinalizeSprite
+  pla
+  tax
+  inx
+  cpx #180
+  bne GameEndWaitLoop
+
+  lda blackCount
+  cmp whiteCount
+  bmi AddEmptyCellsToWhite
+  lda #64
+  sec
+  sbc whiteCount
+  sta blackCount
+  jmp AddEmptyCellsBreak
+AddEmptyCellsToWhite:
+  lda #64
+  sec
+  sbc blackCount
+  sta whiteCount
+AddEmptyCellsBreak:
+
+  ; TODO: ステータスの描画
+  jsr InitializeBoard
+
+  lda #63
+  sta blackArrangeCount
+  lda #0
+  sta whiteArrangeCount
+arrangeStonesLoop:
+  ldy #$00
+  lda #63
+  sec
+  sbc blackCount
+  cmp blackArrangeCount
+  beq arrangeBlackSkip
+  ldx blackArrangeCount
+  lda #cellSetBlack
+  sta board,x
+  dec blackArrangeCount
+  lda ArrangeBlackStoneSE
+  sta soundCh1Timer
+  lda #low(ArrangeBlackStoneSE + 1)
+  sta soundCh1Address
+  lda #high(ArrangeBlackStoneSE + 1)
+  sta soundCh1Address + 1
+  iny
+arrangeBlackSkip:
+  lda whiteArrangeCount
+  cmp whiteCount
+  beq arrangeWhiteSkip
+  tax
+  lda #cellSetWhite
+  sta board,x
+  inc whiteArrangeCount
+  lda ArrangeWhiteStoneSE
+  sta soundCh2Timer
+  lda #low(ArrangeWhiteStoneSE + 1)
+  sta soundCh2Address
+  lda #high(ArrangeWhiteStoneSE + 1)
+  sta soundCh2Address + 1
+  iny
+arrangeWhiteSkip:
+  cpy #$00
+  beq arrangeStonesSkip
+
+  jsr WriteBoard
+  ldx #5
+  jsr Sleep
+  jmp arrangeStonesLoop
+arrangeStonesSkip:
+
+  jsr WriteBoard
+  ldx #60
+  jsr Sleep
+  brk
 
 Abs:
   cmp #$00
@@ -801,6 +886,17 @@ FinalizeSpriteLoop:
   jmp FinalizeSpriteLoop
 FinalizeSpriteBreak:
   stx spriteIndex
+  rts
+
+InitializeBoard:
+  ldx #0
+  lda #cellSetBlank
+InitializeBoardLoop:
+  sta board,x
+  inx
+  cpx #8*8
+  bne InitializeBoardLoop
+  jsr WriteBoard
   rts
 
 ReadController:
@@ -1517,8 +1613,8 @@ PineappleRagCh1:
   .db 9, 70
   .db 0, 0
 PineappleRagCh2:
-  .db 255, 255
-  .db 33, 255
+  .db 255, $7f
+  .db 33, $7f
   .db 19, 46
   .db 19, 62
   .db 20, 41
@@ -1532,6 +1628,14 @@ PineappleRagCh2:
   .db 19, 41
   .db 19, 53
   .db 20, 46
+  .db 0, 0
+ArrangeBlackStoneSE:
+  .db 0, 52
+  .db 12, $7f
+  .db 0, 0
+ArrangeWhiteStoneSE:
+  .db 1, 52
+  .db 12, $7f
   .db 0, 0
 ErrorSE:
   .db 0, 40
