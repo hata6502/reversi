@@ -399,10 +399,10 @@ LoadGameWriteRightBorderLoop:
   jsr WaitFrameProceeded
   ldx bgBufferIndex
 WriteInitialStatusLoop:
-  lda StatusBg,x
+  lda StatusBgStart,x
   sta bgBuffer,x
   inx
-  cpx #29
+  cpx #StatusBgEnd - StatusBgStart
   bne WriteInitialStatusLoop
   lda gameMode
   asl a
@@ -1438,14 +1438,14 @@ gameModeChars:
 Palette:  .incbin "palette.dat"
 PassChars:
   .db $00, $00, $00, $00
-  .db $79, $69, $00, $6a
-StatusBg:
-  .db $21, $3d, 1 + %10000000, $68
-  .db $21, $1e, 2 + %10000000, $8b, $9b
+  .db $1f, $18, $00, $19
+StatusBgStart:
+  .db $21, $1d, 2 + %10000000, $8b, $9b
   .db $21, $9c, 2 + %10000000, $89, $99
   .db $22, $1e, 2 + %10000000, $8c, $9c
   .db $22, $9c, 2 + %10000000, $8a, $9a
   .db $23, $1e, 2 + %10000000, $8c, $9c
+StatusBgEnd:
 StoneChars:
   .db $a0, $a0, $a0, $a0, $a0, $a0, $a0, $a0
   .db $a3, $a3, $d3, $dc, $d6, $a6, $a6, $a6
