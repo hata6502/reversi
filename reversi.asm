@@ -546,7 +546,10 @@ AddEmptyCellsToWhite:
   sta whiteCount
 AddEmptyCellsBreak:
 
-  ; TODO: ステータスの描画
+  lda #$00
+  sta blackPass
+  sta whitePass
+  jsr WriteStatus
   jsr InitializeBoard
 
   lda #63
@@ -597,7 +600,7 @@ arrangeWhiteSkip:
 arrangeStonesSkip:
 
   jsr WriteBoard
-  ldx #60
+  ldx #180
   jsr Sleep
   brk
 
@@ -1189,6 +1192,25 @@ passBlackSkip:
   sta soundCh2Address + 1
 passWhiteSkip:
 
+  jsr WriteStatus
+  rts
+
+WriteDecimal:
+  jsr Decimal
+  pha
+  tya
+  clc
+  adc #'0'
+  sta bgBuffer,x
+  inx
+  pla
+  clc
+  adc #'0'
+  sta bgBuffer,x
+  inx
+  rts
+
+WriteStatus:
   ldx bgBufferIndex
 
   lda enablePlayer
@@ -1310,22 +1332,8 @@ passWhiteSkip:
   inx
   lda whiteCount
   jsr WriteDecimal
-  stx bgBufferIndex
-  rts
 
-WriteDecimal:
-  jsr Decimal
-  pha
-  tya
-  clc
-  adc #'0'
-  sta bgBuffer,x
-  inx
-  pla
-  clc
-  adc #'0'
-  sta bgBuffer,x
-  inx
+  stx bgBufferIndex
   rts
 
 WriteStone:
