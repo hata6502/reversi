@@ -152,6 +152,19 @@ LoadPaletteLoop:
   stx bgBufferIndex
 
 LoadTitle:
+  lda NoSound
+  sta soundCh1Timer
+  lda #low(NoSound + 1)
+  sta soundCh1Address
+  lda #high(NoSound + 1)
+  sta soundCh1Address + 1
+  lda NoSound
+  sta soundCh2Timer
+  lda #low(NoSound + 1)
+  sta soundCh2Address
+  lda #high(NoSound + 1)
+  sta soundCh2Address + 1
+
   lda #$00
   sta ppuAddress
   lda #$20
@@ -663,6 +676,19 @@ WriteResultWinBlackSkip:
   stx bgBufferIndex
   jmp WriteResultBreak
 WriteResultBreak:
+
+  lda PathetiqueCh1
+  sta soundCh1Timer
+  lda #low(PathetiqueCh1 + 1)
+  sta soundCh1Address
+  lda #high(PathetiqueCh1 + 1)
+  sta soundCh1Address + 1
+  lda PathetiqueCh2
+  sta soundCh2Timer
+  lda #low(PathetiqueCh2 + 1)
+  sta soundCh2Address
+  lda #high(PathetiqueCh2 + 1)
+  sta soundCh2Address + 1
 
 ResultWaitLoop:
   jsr WaitFrameProceeded
@@ -1657,6 +1683,106 @@ Notes:
   .dw 0026, 0024, 0023, 0021, 0020, 0019, 0018, 0017, 0016, 0015, 0014, 0013, 0012, 0012, 0011, 0010
   .dw 0010, 0009, 0008, 0008, 0007, 0007, 0006, 0006, 0006, 0005, 0005, 0005, 0004, 0004, 0004, 0003
 NoSound:
+  .db 0, 0
+PathetiqueCh1:
+  .db 0, 67
+  .db 9, 72
+  .db 9, 74
+  .db 9, 75
+  .db 26, 77
+  .db 9, 74
+  .db 27, 75
+  .db 9, 72
+  .db 35, 72
+  .db 9, 71
+  .db 9, 72
+  .db 9, 74
+  .db 9, 75
+  .db 9, 74
+  .db 9, 75
+  .db 9, 77
+  .db 8, 79
+  .db 18, 79
+  .db 18, 79
+  .db 53, 77
+  .db 9, 79
+  .db 9, 80
+  .db 36, 74
+  .db 17, 75
+  .db 9, 77
+  .db 9, 79
+  .db 36, 72
+  .db 18, 72
+  .db 8, 74
+  .db 9, 75
+  .db 18, 75
+  .db 9, 77
+  .db 9, 74
+  .db 18, 74
+  .db 9, 75
+  .db 8, 72
+  .db 0, 0
+PathetiqueCh2:
+  .db 27, 48
+  .db 9, 51
+  .db 8, 55
+  .db 9, 60
+  .db 9, 48
+  .db 9, 53
+  .db 9, 55
+  .db 9, 59
+  .db 9, 48
+  .db 9, 51
+  .db 9, 55
+  .db 8, 60
+  .db 9, 63
+  .db 9, 67
+  .db 9, 63
+  .db 9, 62
+  .db 9, 60
+  .db 9, 67
+  .db 9, 60
+  .db 9, 67
+  .db 8, 62
+  .db 9, 67
+  .db 9, 56
+  .db 9, 67
+  .db 9, 55
+  .db 9, 59
+  .db 9, 62
+  .db 9, 67
+  .db 9, 55
+  .db 8, 59
+  .db 9, 62
+  .db 9, 67
+  .db 9, 53
+  .db 9, 56
+  .db 9, 59
+  .db 9, 62
+  .db 9, 53
+  .db 9, 56
+  .db 8, 59
+  .db 9, 62
+  .db 9, 51
+  .db 9, 55
+  .db 9, 60
+  .db 9, 63
+  .db 9, 56
+  .db 9, 60
+  .db 9, 63
+  .db 8, 66
+  .db 9, 55
+  .db 9, 60
+  .db 9, 63
+  .db 9, 67
+  .db 9, 55
+  .db 9, 59
+  .db 9, 62
+  .db 9, 67
+  .db 17, 48
+  .db 9, 51
+  .db 9, 55
+  .db 9, 60
   .db 0, 0
 PineappleRagCh1:
   .db 0, 67
