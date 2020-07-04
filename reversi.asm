@@ -151,6 +151,7 @@ LoadPaletteLoop:
   bne LoadPaletteLoop
   stx bgBufferIndex
 
+LoadTitle:
   lda #$00
   sta ppuAddress
   lda #$20
@@ -592,17 +593,84 @@ arrangeBlackSkip:
 arrangeWhiteSkip:
   cpy #$00
   beq arrangeStonesSkip
-
   jsr WriteBoard
   ldx #5
   jsr Sleep
   jmp arrangeStonesLoop
 arrangeStonesSkip:
-
   jsr WriteBoard
-  ldx #180
+  ldx #60
   jsr Sleep
-  brk
+
+  lda blackCount
+  cmp whiteCount
+  bne WriteResultDrawSkip
+  ldx bgBufferIndex
+WriteResultDrawLoop:
+  lda ResultDrawStart,x
+  sta bgBuffer,x
+  inx
+  cpx #ResultDrawEnd - ResultDrawStart
+  bne WriteResultDrawLoop
+  stx bgBufferIndex
+  jmp WriteResultBreak
+WriteResultDrawSkip:
+
+  ldx bgBufferIndex
+WriteResultWinLoop:
+  lda ResultWinStart,x
+  sta bgBuffer,x
+  inx
+  cpx #ResultWinEnd - ResultWinStart
+  bne WriteResultWinLoop
+  ldy #4
+  lda blackCount
+  cmp whiteCount
+  bmi WriteResultWinBlackSkip
+  ldy #2
+WriteResultWinBlackSkip:
+  lda #$21
+  sta bgBuffer,x
+  inx
+  lda #$ca
+  sta bgBuffer,x
+  inx
+  lda #$02 + %10000000
+  sta bgBuffer,x
+  inx
+  lda TurnChars,y
+  iny
+  sta bgBuffer,x
+  inx
+  lda TurnChars,y
+  iny
+  sta bgBuffer,x
+  inx
+  lda #$21
+  sta bgBuffer,x
+  inx
+  lda #$ec
+  sta bgBuffer,x
+  inx
+  lda #$02
+  sta bgBuffer,x
+  inx
+  lda blackCount
+  sec
+  sbc whiteCount
+  jsr Abs
+  jsr WriteDecimal
+  stx bgBufferIndex
+  jmp WriteResultBreak
+WriteResultBreak:
+
+ResultWaitLoop:
+  jsr WaitFrameProceeded
+  jsr ReadController
+  lda controller1RisingEdge
+  and #controllerStart
+  beq ResultWaitLoop
+  jmp LoadTitle
 
 Abs:
   cmp #$00
@@ -1543,6 +1611,24 @@ Palette:  .incbin "palette.dat"
 PassChars:
   .db $00, $00, $00, $00
   .db $1f, $18, $00, $19
+ResultDrawStart:
+  .db $21, $a9, 10, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+  .db $21, $c9, 10, $00, $00, $00, $61, $00, $62, $00, $00, $00, $00
+  .db $21, $e9, 10, $00, $00, $00, $71, $1c, $72, $1b, $00, $00, $00
+  .db $22, $09, 10, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+ResultDrawEnd:
+ResultLoseStart:
+  .db $21, $a9, 10, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+  .db $21, $c9, 10, $00, $00, $00, $00, $00, $8c, $8d, $8f, $00, $00
+  .db $21, $e9, 10, $00, $00, $17, $00, $00, $9c, $9d, $9f, $1b, $00
+  .db $22, $09, 10, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+ResultLoseEnd:
+ResultWinStart:
+  .db $21, $a9, 10, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+  .db $21, $c9, 10, $00, $00, $00, $00, $00, $8c, $8d, $8e, $00, $00
+  .db $21, $e9, 10, $00, $00, $17, $00, $00, $9c, $9d, $9e, $1a, $00
+  .db $22, $09, 10, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+ResultWinEnd:
 StatusBgStart:
   .db $21, $1d, 2 + %10000000, $8b, $9b
   .db $21, $9c, 2 + %10000000, $89, $99
