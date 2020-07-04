@@ -677,17 +677,37 @@ WriteResultWinBlackSkip:
   jmp WriteResultBreak
 WriteResultBreak:
 
-  lda PathetiqueCh1
+  ;lda Pathetique3Ch1
+  ;sta soundCh1Timer
+  ;lda #low(Pathetique3Ch1 + 1)
+  ;sta soundCh1Address
+  ;lda #high(Pathetique3Ch1 + 1)
+  ;sta soundCh1Address + 1
+  ;lda Pathetique3Ch2
+  ;sta soundCh2Timer
+  ;lda #low(Pathetique3Ch2 + 1)
+  ;sta soundCh2Address
+  ;lda #high(Pathetique3Ch2 + 1)
+  ;sta soundCh2Address + 1
+
+  ;lda Pathetique2
+  ;sta soundCh1Timer
+  ;lda #low(Pathetique2 + 1)
+  ;sta soundCh1Address
+  ;lda #high(Pathetique2 + 1)
+  ;sta soundCh1Address + 1
+
+  lda LynghamCh1
   sta soundCh1Timer
-  lda #low(PathetiqueCh1 + 1)
+  lda #low(LynghamCh1 + 1)
   sta soundCh1Address
-  lda #high(PathetiqueCh1 + 1)
+  lda #high(LynghamCh1 + 1)
   sta soundCh1Address + 1
-  lda PathetiqueCh2
+  lda LynghamCh2
   sta soundCh2Timer
-  lda #low(PathetiqueCh2 + 1)
+  lda #low(LynghamCh2 + 1)
   sta soundCh2Address
-  lda #high(PathetiqueCh2 + 1)
+  lda #high(LynghamCh2 + 1)
   sta soundCh2Address + 1
 
 ResultWaitLoop:
@@ -1684,7 +1704,102 @@ Notes:
   .dw 0010, 0009, 0008, 0008, 0007, 0007, 0006, 0006, 0006, 0005, 0005, 0005, 0004, 0004, 0004, 0003
 NoSound:
   .db 0, 0
-PathetiqueCh1:
+LynghamCh1:
+  .db 0, 65
+  .db 38, 69
+  .db 29, 70
+  .db 10, 72
+  .db 9, 74
+  .db 10, 72
+  .db 10, 70
+  .db 9, 69
+  .db 19, 70
+  .db 20, 69
+  .db 19, 65
+  .db 19, 67
+  .db 19, 64
+  .db 19, 65
+  .db 0, 0
+LynghamCh2:
+  .db 0, 57
+  .db 38, 60
+  .db 29, 58
+  .db 10, 57
+  .db 9, 58
+  .db 10, 57
+  .db 10, 55
+  .db 28, 53
+  .db 20, 53
+  .db 19, 57
+  .db 19, 58
+  .db 19, 55
+  .db 19, 57
+  .db 0, 0
+Pathetique2:
+  .db 0, 60
+  .db 27, 51
+  .db 26, 56
+  .db 27, 51
+  .db 27, 58
+  .db 26, 51
+  .db 27, 55
+  .db 27, 51
+  .db 26, 63
+  .db 27, 51
+  .db 27, 56
+  .db 26, 51
+  .db 27, 58
+  .db 27, 51
+  .db 26, 61
+  .db 27, 51
+  .db 27, 60
+  .db 26, 51
+  .db 27, 63
+  .db 27, 51
+  .db 26, 68
+  .db 27, 56
+  .db 27, 70
+  .db 26, 56
+  .db 27, 63
+  .db 27, 58
+  .db 26, 55
+  .db 27, 58
+  .db 27, 55
+  .db 26, 58
+  .db 27, 64
+  .db 27, 58
+  .db 26, 65
+  .db 27, 58
+  .db 27, 55
+  .db 26, 58
+  .db 27, 58
+  .db 27, 51
+  .db 26, 55
+  .db 27, 60
+  .db 13, 61
+  .db 14, 63
+  .db 26, 51
+  .db 27, 56
+  .db 27, 51
+  .db 26, 57
+  .db 27, 48
+  .db 27, 51
+  .db 26, 48
+  .db 27, 61
+  .db 27, 49
+  .db 26, 53
+  .db 27, 49
+  .db 27, 60
+  .db 26, 58
+  .db 27, 56
+  .db 27, 55
+  .db 26, 58
+  .db 27, 51
+  .db 27, 49
+  .db 26, 51
+  .db 27, 56
+  .db 0, 0
+Pathetique3Ch1:
   .db 0, 67
   .db 9, 72
   .db 9, 74
@@ -1722,7 +1837,7 @@ PathetiqueCh1:
   .db 9, 75
   .db 8, 72
   .db 0, 0
-PathetiqueCh2:
+Pathetique3Ch2:
   .db 27, 48
   .db 9, 51
   .db 8, 55
