@@ -59,7 +59,7 @@ gameMode                        .rs $01
 ppuAddress                      .rs $02
 ppuControl1                     .rs $01
 ppuControl2                     .rs $01
-random                          .rs $01
+random                          .rs $02
 soundCh1Address                 .rs $02
 soundCh1Timer                   .rs $01
 soundCh2Address                 .rs $02
@@ -121,8 +121,7 @@ initializeMemoryLoop:
   inx
   bne initializeMemoryLoop
 
-  lda #$ff
-  sta random
+  inc random
 
 initializeVBlank2Loop:
   bit $2002
@@ -1022,17 +1021,33 @@ InitializeBoardLoop:
   rts
 
 Random:
+  lda random + 1
+  pha
   lda random
   asl a
+  rol random + 1
+  asl a
+  rol random + 1
+  asl a
+  rol random + 1
+  asl a
+  rol random + 1
+  asl a
+  rol random + 1
+  asl a
+  rol random + 1
+  asl a
+  rol random + 1
   eor random
   sta random
+  pla
+  eor random + 1
+  sta random + 1
   lsr a
   eor random
   sta random
-  asl a
-  asl a
-  eor random
-  sta random
+  eor random + 1
+  sta random + 1
   rts
 
 ReadController:
@@ -1655,6 +1670,7 @@ PlaySoundCh2Loop:
 PlaySoundCh2Break:
   dec soundCh2Timer
 
+  jsr Random
   lda controller1
   bne VBlankRandom1Skip
   jsr Random
