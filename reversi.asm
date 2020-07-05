@@ -59,6 +59,7 @@ gameMode                        .rs $01
 ppuAddress                      .rs $02
 ppuControl1                     .rs $01
 ppuControl2                     .rs $01
+random                          .rs $01
 soundCh1Address                 .rs $02
 soundCh1Timer                   .rs $01
 soundCh2Address                 .rs $02
@@ -119,6 +120,9 @@ initializeMemoryLoop:
   sta $0700,x
   inx
   bne initializeMemoryLoop
+
+  lda #$ff
+  sta random
 
 initializeVBlank2Loop:
   bit $2002
@@ -954,7 +958,8 @@ ExecWhite:
 
   lda #cellSetWhite
   sta execPlayerCell
-  lda controller2RisingEdge
+  ;lda controller2RisingEdge
+  jsr Random
   sta execPlayerControllerRisingEdge
   lda #low(SetWhiteSE)
   sta execPlayerSetSE
@@ -1014,6 +1019,20 @@ InitializeBoardLoop:
   cpx #8*8
   bne InitializeBoardLoop
   jsr WriteBoard
+  rts
+
+Random:
+  lda random
+  asl a
+  eor random
+  sta random
+  lsr a
+  eor random
+  sta random
+  asl a
+  asl a
+  eor random
+  sta random
   rts
 
 ReadController:
@@ -1635,6 +1654,15 @@ PlaySoundCh2Loop:
   jmp PlaySoundCh2Loop
 PlaySoundCh2Break:
   dec soundCh2Timer
+
+  lda controller1
+  bne VBlankRandom1Skip
+  jsr Random
+VBlankRandom1Skip:
+  lda controller2
+  bne VBlankRandom2Skip
+  jsr Random
+VBlankRandom2Skip:
 
   lda #$00
   sta frameProceeded
