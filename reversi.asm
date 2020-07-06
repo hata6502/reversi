@@ -30,9 +30,16 @@ gameModeAdvanced      .equ 2
 gameMode2Players      .equ 3
 
   .rsset $00
+aiControllerRisingEdge          .rs $01
+aiFrame                         .rs $01
+aiScanSettablesEndIndex         .rs $01
+aiSettablesIndex                .rs $01
+aiTargetIndex                   .rs $01
 bgBufferIndex                   .rs $01
 blackArrangeCount               .rs $01
 blackCount                      .rs $01
+blackCursorX                    .rs $01
+blackCursorY                    .rs $01
 blackPass                       .rs $01
 controller1                     .rs $01
 controller1Prev                 .rs $01
@@ -40,10 +47,6 @@ controller1RisingEdge           .rs $01
 controller2                     .rs $01
 controller2Prev                 .rs $01
 controller2RisingEdge           .rs $01
-cursor1X                        .rs $01
-cursor1Y                        .rs $01
-cursor2X                        .rs $01
-cursor2Y                        .rs $01
 enablePlayer                    .rs $01
 execPlayerCell                  .rs $01
 execPlayerControllerRisingEdge  .rs $01
@@ -79,6 +82,8 @@ turnStonesStartIndex            .rs $01
 turnStonesWriteAnimation        .rs $01
 whiteArrangeCount               .rs $01
 whiteCount                      .rs $01
+whiteCursorX                    .rs $01
+whiteCursorY                    .rs $01
 whitePass                       .rs $01
 
   .rsset $0200
@@ -87,6 +92,9 @@ sprite  .rs $ff
   .rsset $0300
 bgBuffer .rs $80
 board    .rs 8*8
+
+  .rsset $0400
+aiSettables .rs 8*8
 
   .bank 0
   .org $c000
@@ -502,12 +510,14 @@ WriteInitialStatusLoop:
   jsr Sleep
 
   lda #3
-  sta cursor1X
-  sta cursor1Y
+  sta blackCursorX
+  sta blackCursorY
   lda #4
-  sta cursor2X
-  sta cursor2Y
+  sta whiteCursorX
+  sta whiteCursorY
   jsr UpdateStatus
+
+  jsr AIInitialize
 
 GameLoop:
   jsr WaitFrameProceeded
@@ -757,9 +767,9 @@ ExecBlack:
   sta execPlayerSetSE + 1
   lda #$03
   sta execPlayerPalette
-  lda cursor1X
+  lda blackCursorX
   sta execPlayerCursorX
-  lda cursor1Y
+  lda blackCursorY
   sta execPlayerCursorY
   lda soundCh1Timer
   sta execPlayerSoundTimer
@@ -771,9 +781,9 @@ ExecBlack:
   jsr ExecPlayer
 
   lda execPlayerCursorX
-  sta cursor1X
+  sta blackCursorX
   lda execPlayerCursorY
-  sta cursor1Y
+  sta blackCursorY
   lda execPlayerSoundTimer
   sta soundCh1Timer
   lda execPlayerSoundAddress
@@ -957,8 +967,8 @@ ExecWhite:
 
   lda #cellSetWhite
   sta execPlayerCell
-  ;lda controller2RisingEdge
-  jsr Random
+  jsr AIExecFrame
+  lda aiControllerRisingEdge
   sta execPlayerControllerRisingEdge
   lda #low(SetWhiteSE)
   sta execPlayerSetSE
@@ -966,9 +976,9 @@ ExecWhite:
   sta execPlayerSetSE + 1
   lda #$00
   sta execPlayerPalette
-  lda cursor2X
+  lda whiteCursorX
   sta execPlayerCursorX
-  lda cursor2Y
+  lda whiteCursorY
   sta execPlayerCursorY
   lda soundCh2Timer
   sta execPlayerSoundTimer
@@ -980,9 +990,9 @@ ExecWhite:
   jsr ExecPlayer
 
   lda execPlayerCursorX
-  sta cursor2X
+  sta whiteCursorX
   lda execPlayerCursorY
-  sta cursor2Y
+  sta whiteCursorY
   lda execPlayerSoundTimer
   sta soundCh2Timer
   lda execPlayerSoundAddress
@@ -1546,6 +1556,190 @@ WriteStoneLoop:
   stx bgBufferIndex
   rts
 
+AIExecFrame:
+  lda aiFrame
+  bne AIExecFrame0Skip
+  ldx #0*8
+  stx aiSettablesIndex
+  jsr AIScanSettables
+  lda #$00
+  sta aiControllerRisingEdge
+  inc aiFrame
+  jmp AIExecFrameBreak
+AIExecFrame0Skip:
+
+  cmp #1
+  bne AIExecFrame1Skip
+  ldx #1*8
+  jsr AIScanSettables
+  inc aiFrame
+  jmp AIExecFrameBreak
+AIExecFrame1Skip:
+
+  cmp #2
+  bne AIExecFrame2Skip
+  ldx #2*8
+  jsr AIScanSettables
+  inc aiFrame
+  jmp AIExecFrameBreak
+AIExecFrame2Skip:
+
+  cmp #3
+  bne AIExecFrame3Skip
+  ldx #3*8
+  jsr AIScanSettables
+  inc aiFrame
+  jmp AIExecFrameBreak
+AIExecFrame3Skip:
+
+  cmp #4
+  bne AIExecFrame4Skip
+  ldx #4*8
+  jsr AIScanSettables
+  inc aiFrame
+  jmp AIExecFrameBreak
+AIExecFrame4Skip:
+
+  cmp #5
+  bne AIExecFrame5Skip
+  ldx #5*8
+  jsr AIScanSettables
+  inc aiFrame
+  jmp AIExecFrameBreak
+AIExecFrame5Skip:
+
+  cmp #6
+  bne AIExecFrame6Skip
+  ldx #6*8
+  jsr AIScanSettables
+  inc aiFrame
+  jmp AIExecFrameBreak
+AIExecFrame6Skip:
+
+  cmp #7
+  bne AIExecFrame7Skip
+  ldx #7*8
+  jsr AIScanSettables
+  inc aiFrame
+  jmp AIExecFrameBreak
+AIExecFrame7Skip:
+
+  cmp #8
+  bne AIExecFrame8Skip
+  lda aiSettablesIndex
+  bne AIPassSkip
+  jsr AIInitialize
+  jmp AIExecFrame8Skip
+AIPassSkip:
+AIDetermineTargetLoop:
+  jsr Random
+  and #%00111111
+  cmp aiSettablesIndex
+  bpl AIDetermineTargetLoop
+  tax
+  lda aiSettables,x
+  sta aiTargetIndex
+  inc aiFrame
+  jmp AIExecFrameBreak
+AIExecFrame8Skip:
+
+  cmp #9
+  bne AIExecFrame9Skip
+  lda aiTargetIndex
+  and #%00000111
+  cmp whiteCursorX
+  bne AIMoveXEndSkip
+  lda #$00
+  sta aiControllerRisingEdge
+  inc aiFrame
+  jmp AIMoveXBreak
+AIMoveXEndSkip:
+  bmi AIMoveLeft
+  lda #controllerRight
+  sta aiControllerRisingEdge
+  jmp AIMoveXBreak
+AIMoveLeft:
+  lda #controllerLeft
+  sta aiControllerRisingEdge
+AIMoveXBreak:
+  lda frameCount
+  and #%00001111
+  beq AIMoveXCancelSkip
+  lda #$00
+  sta aiControllerRisingEdge
+AIMoveXCancelSkip:
+  jmp AIExecFrameBreak
+AIExecFrame9Skip:
+
+  cmp #10
+  bne AIExecFrame10Skip
+  lda aiTargetIndex
+  lsr a
+  lsr a
+  lsr a
+  cmp whiteCursorY
+  bne AIMoveYEndSkip
+  lda #controllerA
+  sta aiControllerRisingEdge
+  jsr AIInitialize
+  jmp AIExecFrame10Skip
+AIMoveYEndSkip:
+  bmi AIMoveUp
+  lda #controllerDown
+  sta aiControllerRisingEdge
+  jmp AIMoveYBreak
+AIMoveUp:
+  lda #controllerUp
+  sta aiControllerRisingEdge
+AIMoveYBreak:
+  lda frameCount
+  and #%00001111
+  beq AIMoveYCancelSkip
+  lda #$00
+  sta aiControllerRisingEdge
+AIMoveYCancelSkip:
+  jmp AIExecFrameBreak
+AIExecFrame10Skip:
+
+AIExecFrameBreak:
+  rts
+
+AIInitialize:
+  lda #0
+  sta aiFrame
+  rts
+
+AIScanSettables:
+  txa
+  clc
+  adc #8
+  sta aiScanSettablesEndIndex
+  lda #$01
+  sta turnStonesDryRun
+AIscanSettablesLoop:
+  lda board,x
+  and #%11000000
+  cmp #cellBlank
+  bne AIscanSettablesBlankSkip
+  lda #cellWhite
+  sta turnStonesCell
+  txa
+  pha
+  jsr TurnStones
+  pla
+  tax
+  lda turnStonesCount
+  beq AIscanSettablesBlankSkip
+  ldy aiSettablesIndex
+  txa
+  sta aiSettables,y
+  inc aiSettablesIndex
+AIscanSettablesBlankSkip:
+  inx
+  cpx aiScanSettablesEndIndex
+  bne AIscanSettablesLoop
+  rts
+
 VBlank:
   pha
   txa
@@ -1561,9 +1755,9 @@ VBlankFrameProcess:
   sta $4014
 
   ldx #$00
-WritePpuLoop:
+WritePPULoop:
   cpx bgBufferIndex
-  beq WritePpuBreak
+  beq WritePPUBreak
   lda bgBuffer,x
   inx
   sta $2006
@@ -1571,31 +1765,31 @@ WritePpuLoop:
   inx
   sta $2006
   lda bgBuffer,x
-  bpl WritePpuHorizontal
+  bpl WritePPUHorizontal
   lda ppuControl1
   ora #%00000100
-  jmp WritePpuDirection
-WritePpuHorizontal:
+  jmp WritePPUDirection
+WritePPUHorizontal:
   lda ppuControl1
   and #%11111011
-WritePpuDirection:
+WritePPUDirection:
   sta $2000
   sta ppuControl1
   lda bgBuffer,x
   and #%01111111
   tay
   inx
-WritePpuDataLoop:
+WritePPUDataLoop:
   cpy #$00
-  beq WritePpuDataBreak
+  beq WritePPUDataBreak
   lda bgBuffer,x
   inx
   sta $2007
   dey
-  jmp WritePpuDataLoop
-WritePpuDataBreak:
-  jmp WritePpuLoop
-WritePpuBreak:
+  jmp WritePPUDataLoop
+WritePPUDataBreak:
+  jmp WritePPULoop
+WritePPUBreak:
   lda #$00
   sta bgBufferIndex
   sta $2005
