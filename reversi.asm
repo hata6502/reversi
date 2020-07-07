@@ -1697,12 +1697,17 @@ WriteStoneLoop:
 AIExecFrame:
   lda aiFrame
   bne AIExecFrame0Skip
+  jsr Random
+  jsr Abs
+  cmp #$03
+  bpl AIWait
   ldx #0*8
   stx aiSettablesIndex
   jsr AIScanSettables
+  inc aiFrame
+AIWait:
   lda #$00
   sta aiControllerRisingEdge
-  inc aiFrame
   jmp AIExecFrameBreak
 AIExecFrame0Skip:
 
@@ -1790,7 +1795,7 @@ AIExecFrame8Skip:
   lda #$00
   sta aiControllerRisingEdge
   inc aiFrame
-  jmp AIExecFrame9Skip
+  jmp AIMoveXCancelSkip
 AIMoveXEndSkip:
   bmi AIMoveLeft
   lda #controllerRight
@@ -1800,7 +1805,7 @@ AIMoveLeft:
 AIMoveXBreak:
   sta aiControllerRisingEdge
   lda frameCount
-  and #%00001111
+  and #%00000111
   beq AIMoveXCancelSkip
   lda #$00
   sta aiControllerRisingEdge
@@ -1819,7 +1824,7 @@ AIExecFrame9Skip:
   lda #controllerA
   sta aiControllerRisingEdge
   jsr AIInitialize
-  jmp AIExecFrame10Skip
+  jmp AIMoveYCancelSkip
 AIMoveYEndSkip:
   bmi AIMoveUp
   lda #controllerDown
@@ -1829,7 +1834,7 @@ AIMoveUp:
 AIMoveYBreak:
   sta aiControllerRisingEdge
   lda frameCount
-  and #%00001111
+  and #%00000111
   beq AIMoveYCancelSkip
   lda #$00
   sta aiControllerRisingEdge
