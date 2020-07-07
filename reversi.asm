@@ -29,6 +29,10 @@ gameModeIntermediate  .equ 1
 gameModeAdvanced      .equ 2
 gameMode2Players      .equ 3
 
+player1   .equ 0
+player2   .equ 1
+playerAI  .equ 2
+
   .rsset $00
 aiControllerRisingEdge          .rs $01
 aiFrame                         .rs $01
@@ -41,6 +45,7 @@ blackCount                      .rs $01
 blackCursorX                    .rs $01
 blackCursorY                    .rs $01
 blackPass                       .rs $01
+blackPlayer                     .rs $01
 controller1                     .rs $01
 controller1Prev                 .rs $01
 controller1RisingEdge           .rs $01
@@ -85,6 +90,7 @@ whiteCount                      .rs $01
 whiteCursorX                    .rs $01
 whiteCursorY                    .rs $01
 whitePass                       .rs $01
+whitePlayer                     .rs $01
 
   .rsset $0200
 sprite  .rs $ff
@@ -416,6 +422,24 @@ LoadGameWriteRightBorderLoop:
   bne LoadGameWriteRightBorderLoop
   stx bgBufferIndex
 
+  lda gameMode
+  asl a
+  tax
+  jsr Random
+  and #%10000000
+  bne setPlayer
+  lda Players,x
+  sta blackPlayer
+  lda Players + 1,x
+  sta whitePlayer
+  jmp setPlayerBreak
+setPlayer:
+  lda Players + 1,x
+  sta blackPlayer
+  lda Players,x
+  sta whitePlayer
+setPlayerBreak:
+
   jsr WaitFrameProceeded
   ldx bgBufferIndex
 WriteInitialStatusLoop:
@@ -459,6 +483,82 @@ WriteInitialStatusLoop:
   sta bgBuffer,x
   inx
   lda gameModeChars,y
+  iny
+  sta bgBuffer,x
+  inx
+  lda blackPlayer
+  asl a
+  asl a
+  tay
+  lda #$21
+  sta bgBuffer,x
+  inx
+  lda #$dc
+  sta bgBuffer,x
+  inx
+  lda #1
+  sta bgBuffer,x
+  inx
+  lda PlayerChars,y
+  iny
+  sta bgBuffer,x
+  inx
+  lda #$21
+  sta bgBuffer,x
+  inx
+  lda #$fc
+  sta bgBuffer,x
+  inx
+  lda #3
+  sta bgBuffer,x
+  inx
+  lda PlayerChars,y
+  iny
+  sta bgBuffer,x
+  inx
+  lda PlayerChars,y
+  iny
+  sta bgBuffer,x
+  inx
+  lda PlayerChars,y
+  iny
+  sta bgBuffer,x
+  inx
+  lda whitePlayer
+  asl a
+  asl a
+  tay
+  lda #$22
+  sta bgBuffer,x
+  inx
+  lda #$dc
+  sta bgBuffer,x
+  inx
+  lda #1
+  sta bgBuffer,x
+  inx
+  lda PlayerChars,y
+  iny
+  sta bgBuffer,x
+  inx
+  lda #$22
+  sta bgBuffer,x
+  inx
+  lda #$fc
+  sta bgBuffer,x
+  inx
+  lda #3
+  sta bgBuffer,x
+  inx
+  lda PlayerChars,y
+  iny
+  sta bgBuffer,x
+  inx
+  lda PlayerChars,y
+  iny
+  sta bgBuffer,x
+  inx
+  lda PlayerChars,y
   iny
   sta bgBuffer,x
   inx
@@ -515,9 +615,8 @@ WriteInitialStatusLoop:
   lda #4
   sta whiteCursorX
   sta whiteCursorY
-  jsr UpdateStatus
-
   jsr AIInitialize
+  jsr UpdateStatus
 
 GameLoop:
   jsr WaitFrameProceeded
@@ -690,26 +789,18 @@ WriteResultWinBlackSkip:
   jmp WriteResultBreak
 WriteResultBreak:
 
-  ;lda Pathetique3Ch1
-  ;sta soundCh1Timer
-  ;lda #low(Pathetique3Ch1 + 1)
-  ;sta soundCh1Address
-  ;lda #high(Pathetique3Ch1 + 1)
-  ;sta soundCh1Address + 1
-  ;lda Pathetique3Ch2
-  ;sta soundCh2Timer
-  ;lda #low(Pathetique3Ch2 + 1)
-  ;sta soundCh2Address
-  ;lda #high(Pathetique3Ch2 + 1)
-  ;sta soundCh2Address + 1
-
-  ;lda Pathetique2
-  ;sta soundCh1Timer
-  ;lda #low(Pathetique2 + 1)
-  ;sta soundCh1Address
-  ;lda #high(Pathetique2 + 1)
-  ;sta soundCh1Address + 1
-
+  lda Pathetique2
+  sta soundCh1Timer
+  lda #low(Pathetique2 + 1)
+  sta soundCh1Address
+  lda #high(Pathetique2 + 1)
+  sta soundCh1Address + 1
+  lda gameMode
+  cmp #gameMode2Players
+  beq SetResultSoundAISkip
+  lda blackCount
+  cmp whiteCount
+  beq SetResultSoundAISkip
   lda LynghamCh1
   sta soundCh1Timer
   lda #low(LynghamCh1 + 1)
@@ -722,6 +813,33 @@ WriteResultBreak:
   sta soundCh2Address
   lda #high(LynghamCh2 + 1)
   sta soundCh2Address + 1
+  ldx #$00
+  lda blackPlayer
+  cmp #player1
+  bne SetResultSoundLose1Skip
+  inx
+SetResultSoundLose1Skip:
+  lda blackCount
+  cmp whiteCount
+  bpl SetResultSoundLose2Skip
+  inx
+SetResultSoundLose2Skip:
+  txa
+  and #%00000001
+  bne SetResultSoundAISkip
+  lda Pathetique3Ch1
+  sta soundCh1Timer
+  lda #low(Pathetique3Ch1 + 1)
+  sta soundCh1Address
+  lda #high(Pathetique3Ch1 + 1)
+  sta soundCh1Address + 1
+  lda Pathetique3Ch2
+  sta soundCh2Timer
+  lda #low(Pathetique3Ch2 + 1)
+  sta soundCh2Address
+  lda #high(Pathetique3Ch2 + 1)
+  sta soundCh2Address + 1
+SetResultSoundAISkip:
 
 ResultWaitLoop:
   jsr WaitFrameProceeded
@@ -759,7 +877,8 @@ ExecBlack:
 
   lda #cellSetBlack
   sta execPlayerCell
-  lda controller1RisingEdge
+  lda blackPlayer
+  jsr PlayerController
   sta execPlayerControllerRisingEdge
   lda #low(SetBlackSE)
   sta execPlayerSetSE
@@ -967,8 +1086,8 @@ ExecWhite:
 
   lda #cellSetWhite
   sta execPlayerCell
-  jsr AIExecFrame
-  lda aiControllerRisingEdge
+  lda whitePlayer
+  jsr PlayerController
   sta execPlayerControllerRisingEdge
   lda #low(SetWhiteSE)
   sta execPlayerSetSE
@@ -1029,6 +1148,25 @@ InitializeBoardLoop:
   bne InitializeBoardLoop
   jsr WriteBoard
   rts
+
+PlayerController:
+  cmp #player1
+  bne Player1ControllerSkip
+  lda controller1RisingEdge
+  rts
+Player1ControllerSkip:
+  cmp #player2
+  bne Player2ControllerSkip
+  lda controller2RisingEdge
+  rts
+Player2ControllerSkip:
+  cmp #playerAI
+  bne AIControllerSkip
+  jsr AIExecFrame
+  lda aiControllerRisingEdge
+  rts
+AIControllerSkip:
+  brk
 
 Random:
   lda random + 1
@@ -1883,6 +2021,11 @@ VBlankRandom2Skip:
   pla
   rti
 
+Players:
+  .db player1, playerAI
+  .db player1, playerAI
+  .db player1, playerAI
+  .db player1, player2
 TurnStonesDirection:
   .db $01, $09, $08, $07, $ff, $f7, $f8, $f9
 
@@ -1895,6 +2038,13 @@ Palette:  .incbin "palette.dat"
 PassChars:
   .db $00, $00, $00, $00
   .db $1f, $18, $00, $19
+PlayerChars:
+  .db $87
+  .db $97, $00, $00
+  .db $88
+  .db $98, $00, $00
+  .db $00
+  .db 'C', 'O', 'M'
 ResultDrawStart:
   .db $21, $a9, 10, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
   .db $21, $c9, 10, $00, $00, $00, $61, $00, $62, $00, $00, $00, $00
