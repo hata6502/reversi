@@ -877,9 +877,6 @@ ExecBlack:
 
   lda #cellSetBlack
   sta execPlayerCell
-  lda blackPlayer
-  jsr PlayerController
-  sta execPlayerControllerRisingEdge
   lda #low(SetBlackSE)
   sta execPlayerSetSE
   lda #high(SetBlackSE)
@@ -897,6 +894,9 @@ ExecBlack:
   lda soundCh1Address + 1
   sta execPlayerSoundAddress + 1
 
+  lda blackPlayer
+  jsr PlayerController
+  sta execPlayerControllerRisingEdge
   jsr ExecPlayer
 
   lda execPlayerCursorX
@@ -1086,9 +1086,6 @@ ExecWhite:
 
   lda #cellSetWhite
   sta execPlayerCell
-  lda whitePlayer
-  jsr PlayerController
-  sta execPlayerControllerRisingEdge
   lda #low(SetWhiteSE)
   sta execPlayerSetSE
   lda #high(SetWhiteSE)
@@ -1106,6 +1103,9 @@ ExecWhite:
   lda soundCh2Address + 1
   sta execPlayerSoundAddress + 1
 
+  lda whitePlayer
+  jsr PlayerController
+  sta execPlayerControllerRisingEdge
   jsr ExecPlayer
 
   lda execPlayerCursorX
@@ -1785,21 +1785,20 @@ AIExecFrame8Skip:
   bne AIExecFrame9Skip
   lda aiTargetIndex
   and #%00000111
-  cmp whiteCursorX
+  cmp execPlayerCursorX
   bne AIMoveXEndSkip
   lda #$00
   sta aiControllerRisingEdge
   inc aiFrame
-  jmp AIMoveXBreak
+  jmp AIExecFrame9Skip
 AIMoveXEndSkip:
   bmi AIMoveLeft
   lda #controllerRight
-  sta aiControllerRisingEdge
   jmp AIMoveXBreak
 AIMoveLeft:
   lda #controllerLeft
-  sta aiControllerRisingEdge
 AIMoveXBreak:
+  sta aiControllerRisingEdge
   lda frameCount
   and #%00001111
   beq AIMoveXCancelSkip
@@ -1815,7 +1814,7 @@ AIExecFrame9Skip:
   lsr a
   lsr a
   lsr a
-  cmp whiteCursorY
+  cmp execPlayerCursorY
   bne AIMoveYEndSkip
   lda #controllerA
   sta aiControllerRisingEdge
@@ -1824,12 +1823,11 @@ AIExecFrame9Skip:
 AIMoveYEndSkip:
   bmi AIMoveUp
   lda #controllerDown
-  sta aiControllerRisingEdge
   jmp AIMoveYBreak
 AIMoveUp:
   lda #controllerUp
-  sta aiControllerRisingEdge
 AIMoveYBreak:
+  sta aiControllerRisingEdge
   lda frameCount
   and #%00001111
   beq AIMoveYCancelSkip
@@ -1859,7 +1857,8 @@ AIscanSettablesLoop:
   and #%11000000
   cmp #cellBlank
   bne AIscanSettablesBlankSkip
-  lda #cellWhite
+  lda execPlayerCell
+  and #%11000000
   sta turnStonesCell
   txa
   pha
