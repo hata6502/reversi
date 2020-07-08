@@ -4,7 +4,7 @@
   <a href="https://github.com/blue-hood/reversi/releases" target="_blank">
     <img alt="GitHub release (latest by date)" src="https://img.shields.io/github/v/release/blue-hood/reversi">
   </a>
-  <a href="#" target="_blank">
+  <a href="https://github.com/blue-hood/reversi/graphs/traffic" target="_blank">
     <img alt="GitHub All Releases" src="https://img.shields.io/github/downloads/blue-hood/reversi/total">
   </a>
   <a href="https://github.com/blue-hood/reversi/blob/master/LICENSE" target="_blank">
