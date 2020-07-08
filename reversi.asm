@@ -68,10 +68,12 @@ execPlayerSoundTimer            .rs $01
 frameCount                      .rs $01
 frameProceeded                  .rs $01
 gameMode                        .rs $01
+gameOver                        .rs $01
 ppuAddress                      .rs $02
 ppuControl1                     .rs $01
 ppuControl2                     .rs $01
 random                          .rs $02
+round                           .rs $01
 soundCh1Address                 .rs $02
 soundCh1Timer                   .rs $01
 soundCh2Address                 .rs $02
@@ -295,6 +297,9 @@ SelectGameSkip:
   jmp TitleLoop
 TitleBreak:
 
+  lda #1
+  sta round
+
   ldx #enableBlack
   lda controller1
   and #controllerA
@@ -320,6 +325,7 @@ RealTimeModeSkip:
 
   jsr FinalizeSprite
 
+ClearTitle:
   lda #$00
   sta ppuAddress
   lda #$20
@@ -490,6 +496,17 @@ WriteInitialStatusLoop:
   iny
   sta bgBuffer,x
   inx
+  lda #$20
+  sta bgBuffer,x
+  inx
+  lda #$fc
+  sta bgBuffer,x
+  inx
+  lda #$02
+  sta bgBuffer,x
+  inx
+  lda round
+  jsr WriteDecimal
   lda blackPlayer
   asl a
   asl a
@@ -686,13 +703,13 @@ AddEmptyCellsBreak:
   sta blackArrangeCount
   lda #0
   sta whiteArrangeCount
-arrangeStonesLoop:
+ArrangeStonesLoop:
   ldy #$00
   lda #63
   sec
   sbc blackCount
   cmp blackArrangeCount
-  beq arrangeBlackSkip
+  beq ArrangeBlackSkip
   ldx blackArrangeCount
   lda #cellSetBlack
   sta board,x
@@ -704,10 +721,10 @@ arrangeStonesLoop:
   lda #high(ArrangeBlackStoneSE + 1)
   sta soundCh1Address + 1
   iny
-arrangeBlackSkip:
+ArrangeBlackSkip:
   lda whiteArrangeCount
   cmp whiteCount
-  beq arrangeWhiteSkip
+  beq ArrangeWhiteSkip
   tax
   lda #cellSetWhite
   sta board,x
@@ -719,18 +736,20 @@ arrangeBlackSkip:
   lda #high(ArrangeWhiteStoneSE + 1)
   sta soundCh2Address + 1
   iny
-arrangeWhiteSkip:
+ArrangeWhiteSkip:
   cpy #$00
-  beq arrangeStonesSkip
+  beq ArrangeStonesSkip
   jsr WriteBoard
   ldx #5
   jsr Sleep
-  jmp arrangeStonesLoop
-arrangeStonesSkip:
+  jmp ArrangeStonesLoop
+ArrangeStonesSkip:
   jsr WriteBoard
   ldx #60
   jsr Sleep
 
+  lda #$00
+  sta gameOver
   ldy #resultDraw
   lda Pathetique2
   sta soundCh1Timer
@@ -741,6 +760,7 @@ arrangeStonesSkip:
   lda blackCount
   cmp whiteCount
   beq SetResultSoundAISkip
+  inc round
   ldy #resultWin
   lda gameMode
   cmp #gameMode2Players
@@ -771,6 +791,7 @@ SetResultSoundLose2Skip:
   txa
   and #%00000001
   bne SetResultSoundAISkip
+  inc gameOver
   ldy #resultLose
   lda Pathetique3Ch1
   sta soundCh1Timer
@@ -869,6 +890,19 @@ ResultWaitLoop:
   lda controller1RisingEdge
   and #controllerStart
   beq ResultWaitLoop
+  lda NoSound
+  sta soundCh1Timer
+  sta soundCh2Timer
+  lda #low(NoSound + 1)
+  sta soundCh1Address
+  sta soundCh2Address
+  lda #high(NoSound + 1)
+  sta soundCh1Address + 1
+  sta soundCh2Address + 1
+  lda gameOver
+  bne gameContinueSkip
+  jmp ClearTitle
+gameContinueSkip:
   jmp LoadTitle
 
 Abs:
@@ -1721,7 +1755,7 @@ AIExecFrame:
   bne AIExecFrame0Skip
   jsr Random
   jsr Abs
-  cmp #$02
+  cmp #$03
   bpl AIWait
   ldx #0*8
   stx aiSettablesIndex
@@ -2090,6 +2124,7 @@ ResultWinStart:
   .db $22, $09, 10, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
 ResultWinEnd:
 StatusBgStart:
+  .db $20, $de, 2 + %10000000, $85, $95
   .db $21, $1d, 2 + %10000000, $8b, $9b
   .db $21, $9c, 2 + %10000000, $89, $99
   .db $22, $1e, 2 + %10000000, $8c, $9c
