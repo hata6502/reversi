@@ -33,6 +33,10 @@ player1   .equ 0
 player2   .equ 1
 playerAI  .equ 2
 
+resultDraw  .equ 0
+resultLose  .equ 2
+resultWin   .equ 1
+
   .rsset $00
 aiControllerRisingEdge          .rs $01
 aiFrame                         .rs $01
@@ -727,8 +731,61 @@ arrangeStonesSkip:
   ldx #60
   jsr Sleep
 
+  ldy #resultDraw
+  lda Pathetique2
+  sta soundCh1Timer
+  lda #low(Pathetique2 + 1)
+  sta soundCh1Address
+  lda #high(Pathetique2 + 1)
+  sta soundCh1Address + 1
   lda blackCount
   cmp whiteCount
+  beq SetResultSoundAISkip
+  ldy #resultWin
+  lda gameMode
+  cmp #gameMode2Players
+  beq SetResultSoundAISkip
+  lda LynghamCh1
+  sta soundCh1Timer
+  lda #low(LynghamCh1 + 1)
+  sta soundCh1Address
+  lda #high(LynghamCh1 + 1)
+  sta soundCh1Address + 1
+  lda LynghamCh2
+  sta soundCh2Timer
+  lda #low(LynghamCh2 + 1)
+  sta soundCh2Address
+  lda #high(LynghamCh2 + 1)
+  sta soundCh2Address + 1
+  ldx #$00
+  lda blackPlayer
+  cmp #player1
+  bne SetResultSoundLose1Skip
+  inx
+SetResultSoundLose1Skip:
+  lda blackCount
+  cmp whiteCount
+  bpl SetResultSoundLose2Skip
+  inx
+SetResultSoundLose2Skip:
+  txa
+  and #%00000001
+  bne SetResultSoundAISkip
+  ldy #resultLose
+  lda Pathetique3Ch1
+  sta soundCh1Timer
+  lda #low(Pathetique3Ch1 + 1)
+  sta soundCh1Address
+  lda #high(Pathetique3Ch1 + 1)
+  sta soundCh1Address + 1
+  lda Pathetique3Ch2
+  sta soundCh2Timer
+  lda #low(Pathetique3Ch2 + 1)
+  sta soundCh2Address
+  lda #high(Pathetique3Ch2 + 1)
+  sta soundCh2Address + 1
+SetResultSoundAISkip:
+  cpy #resultDraw
   bne WriteResultDrawSkip
   ldx bgBufferIndex
 WriteResultDrawLoop:
@@ -740,7 +797,8 @@ WriteResultDrawLoop:
   stx bgBufferIndex
   jmp WriteResultBreak
 WriteResultDrawSkip:
-
+  cpy #resultWin
+  bne WriteResultWinSkip
   ldx bgBufferIndex
 WriteResultWinLoop:
   lda ResultWinStart,x
@@ -754,6 +812,22 @@ WriteResultWinLoop:
   bmi WriteResultWinBlackSkip
   ldy #2
 WriteResultWinBlackSkip:
+  jmp WriteResultInject
+WriteResultWinSkip:
+  ldx bgBufferIndex
+WriteResultLoseLoop:
+  lda ResultLoseStart,x
+  sta bgBuffer,x
+  inx
+  cpx #ResultLoseEnd - ResultLoseStart
+  bne WriteResultLoseLoop
+  ldy #4
+  lda blackCount
+  cmp whiteCount
+  bpl WriteResultLoseBlackSkip
+  ldy #2
+WriteResultLoseBlackSkip:
+WriteResultInject:
   lda #$21
   sta bgBuffer,x
   inx
@@ -788,58 +862,6 @@ WriteResultWinBlackSkip:
   stx bgBufferIndex
   jmp WriteResultBreak
 WriteResultBreak:
-
-  lda Pathetique2
-  sta soundCh1Timer
-  lda #low(Pathetique2 + 1)
-  sta soundCh1Address
-  lda #high(Pathetique2 + 1)
-  sta soundCh1Address + 1
-  lda gameMode
-  cmp #gameMode2Players
-  beq SetResultSoundAISkip
-  lda blackCount
-  cmp whiteCount
-  beq SetResultSoundAISkip
-  lda LynghamCh1
-  sta soundCh1Timer
-  lda #low(LynghamCh1 + 1)
-  sta soundCh1Address
-  lda #high(LynghamCh1 + 1)
-  sta soundCh1Address + 1
-  lda LynghamCh2
-  sta soundCh2Timer
-  lda #low(LynghamCh2 + 1)
-  sta soundCh2Address
-  lda #high(LynghamCh2 + 1)
-  sta soundCh2Address + 1
-  ldx #$00
-  lda blackPlayer
-  cmp #player1
-  bne SetResultSoundLose1Skip
-  inx
-SetResultSoundLose1Skip:
-  lda blackCount
-  cmp whiteCount
-  bpl SetResultSoundLose2Skip
-  inx
-SetResultSoundLose2Skip:
-  txa
-  and #%00000001
-  bne SetResultSoundAISkip
-  lda Pathetique3Ch1
-  sta soundCh1Timer
-  lda #low(Pathetique3Ch1 + 1)
-  sta soundCh1Address
-  lda #high(Pathetique3Ch1 + 1)
-  sta soundCh1Address + 1
-  lda Pathetique3Ch2
-  sta soundCh2Timer
-  lda #low(Pathetique3Ch2 + 1)
-  sta soundCh2Address
-  lda #high(Pathetique3Ch2 + 1)
-  sta soundCh2Address + 1
-SetResultSoundAISkip:
 
 ResultWaitLoop:
   jsr WaitFrameProceeded
@@ -1699,7 +1721,7 @@ AIExecFrame:
   bne AIExecFrame0Skip
   jsr Random
   jsr Abs
-  cmp #$03
+  cmp #$02
   bpl AIWait
   ldx #0*8
   stx aiSettablesIndex
