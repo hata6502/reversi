@@ -359,6 +359,7 @@ ClearTitleWriteLoop:
   cmp #$24
   bne ClearTitleLoop
 
+ContinueGame:
   jsr InitializeBoard
 
   jsr WaitFrameProceeded
@@ -496,6 +497,9 @@ WriteInitialStatusLoop:
   iny
   sta bgBuffer,x
   inx
+  lda gameMode
+  cmp #gameMode2Players
+  beq WriteRoundSkip
   lda #$20
   sta bgBuffer,x
   inx
@@ -507,6 +511,22 @@ WriteInitialStatusLoop:
   inx
   lda round
   jsr WriteDecimal
+  lda #$20
+  sta bgBuffer,x
+  inx
+  lda #$de
+  sta bgBuffer,x
+  inx
+  lda #2 + %10000000
+  sta bgBuffer,x
+  inx
+  lda #$85
+  sta bgBuffer,x
+  inx
+  lda #$95
+  sta bgBuffer,x
+  inx
+WriteRoundSkip:
   lda blackPlayer
   asl a
   asl a
@@ -748,8 +768,8 @@ ArrangeStonesSkip:
   ldx #60
   jsr Sleep
 
-  lda #$00
-  sta gameOver
+  ldx #$00
+  stx gameOver
   ldy #resultDraw
   lda Pathetique2
   sta soundCh1Timer
@@ -760,11 +780,13 @@ ArrangeStonesSkip:
   lda blackCount
   cmp whiteCount
   beq SetResultSoundAISkip
+  inc gameOver
   inc round
   ldy #resultWin
   lda gameMode
   cmp #gameMode2Players
   beq SetResultSoundAISkip
+  dec gameOver
   lda LynghamCh1
   sta soundCh1Timer
   lda #low(LynghamCh1 + 1)
@@ -901,7 +923,7 @@ ResultWaitLoop:
   sta soundCh2Address + 1
   lda gameOver
   bne gameContinueSkip
-  jmp ClearTitle
+  jmp ContinueGame
 gameContinueSkip:
   jmp LoadTitle
 
@@ -2124,7 +2146,6 @@ ResultWinStart:
   .db $22, $09, 10, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
 ResultWinEnd:
 StatusBgStart:
-  .db $20, $de, 2 + %10000000, $85, $95
   .db $21, $1d, 2 + %10000000, $8b, $9b
   .db $21, $9c, 2 + %10000000, $89, $99
   .db $22, $1e, 2 + %10000000, $8c, $9c
