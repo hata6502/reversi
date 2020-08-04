@@ -39,7 +39,9 @@ resultWin   .equ 1
 
   .rsset $00
 aiControllerRisingEdge          .rs $01
+aiEvaluationMax                 .rs $01
 aiFrame                         .rs $01
+aiPlayer1Cell                   .rs $01
 aiScanSettablesEndIndex         .rs $01
 aiSettablesIndex                .rs $01
 aiTargetIndex                   .rs $01
@@ -107,6 +109,7 @@ board    .rs 8*8
 
   .rsset $0400
 aiSettables .rs 8*8
+aiEvaluations .rs 8*8
 
   .bank 0
   .org $c000
@@ -307,6 +310,22 @@ TitleBreak:
   ldx #enableBlack + enableWhite
 RealTimeModeSkip:
   stx enablePlayer
+
+  lda gameMode
+  asl a
+  asl a
+  asl a
+  asl a
+  asl a
+  asl a
+  tax
+AIInitializeEvaluationsLoop:
+  lda AIEvaluations,x
+  sta aiEvaluations,x
+  inx
+  txa
+  and #%00111111
+  bne AIInitializeEvaluationsLoop
 
   lda StartSE
   sta soundCh1Timer
@@ -697,6 +716,27 @@ GameEndWaitLoop:
   inx
   cpx #180
   bne GameEndWaitLoop
+
+  lda #cellBlack
+  sta aiPlayer1Cell
+  lda whitePlayer
+  cmp #player1
+  bne AISetPlayer1CellWhiteSkip
+  lda #cellWhite
+  sta aiPlayer1Cell
+AISetPlayer1CellWhiteSkip:
+
+  ldx #0
+AIUpdateEvaluationsLoop:
+  lda board,x
+  and #%11000000
+  cmp aiPlayer1Cell
+  bne AIUpdateEvaluationSkip
+  inc aiEvaluations,x
+AIUpdateEvaluationSkip:
+  inx
+  cpx #8*8
+  bne AIUpdateEvaluationsLoop
 
   lda blackCount
   cmp whiteCount
@@ -1850,16 +1890,22 @@ AIExecFrame7Skip:
   lda aiSettablesIndex
   bne AIPassSkip
   jsr AIInitialize
-  jmp AIExecFrame8Skip
+  jmp AIExecFrameBreak
 AIPassSkip:
+  ldx #0
+  stx aiEvaluationMax
 AIDetermineTargetLoop:
-  jsr Random
-  and #%00111111
-  cmp aiSettablesIndex
-  bpl AIDetermineTargetLoop
-  tax
-  lda aiSettables,x
-  sta aiTargetIndex
+  ldy aiSettables,x
+  lda aiEvaluations,y
+  cmp aiEvaluationMax
+  bcc AIDetermineTargetUpdateSkip
+  lda aiEvaluations,y
+  sta aiEvaluationMax
+  sty aiTargetIndex
+AIDetermineTargetUpdateSkip:
+  inx
+  cpx aiSettablesIndex
+  bne AIDetermineTargetLoop
   inc aiFrame
   jmp AIExecFrameBreak
 AIExecFrame8Skip:
@@ -2110,6 +2156,34 @@ Players:
   .db player1, player2
 TurnStonesDirection:
   .db $01, $09, $08, $07, $ff, $f7, $f8, $f9
+
+AIEvaluations:
+  .db 013, 105, 027, 030, 079, 042, 036, 094
+  .db 084, 080, 113, 064, 051, 026, 077, 093
+  .db 052, 018, 126, 023, 118, 051, 029, 105
+  .db 099, 113, 079, 089, 026, 028, 107, 026
+  .db 074, 062, 007, 119, 065, 087, 083, 004
+  .db 017, 031, 105, 026, 080, 010, 064, 005
+  .db 073, 031, 099, 022, 116, 109, 126, 037
+  .db 072, 095, 007, 118, 083, 073, 066, 105
+
+  .db 160, 020, 060, 045, 045, 060, 020, 160
+  .db 020, 000, 035, 035, 035, 035, 000, 020
+  .db 060, 035, 055, 043, 043, 055, 035, 060
+  .db 045, 035, 043, 043, 043, 043, 035, 045
+  .db 045, 035, 043, 043, 043, 043, 035, 045
+  .db 060, 035, 055, 043, 043, 055, 035, 060
+  .db 020, 000, 035, 035, 035, 035, 000, 020
+  .db 160, 020, 060, 045, 045, 060, 020, 160
+
+  .db 045, 003, 015, 014, 014, 015, 003, 045
+  .db 003, 000, 012, 012, 012, 012, 000, 003
+  .db 015, 012, 015, 014, 014, 015, 012, 015
+  .db 014, 012, 014, 014, 014, 014, 012, 014
+  .db 014, 012, 014, 014, 014, 014, 012, 014
+  .db 015, 012, 015, 014, 014, 015, 012, 015
+  .db 003, 000, 012, 012, 012, 012, 000, 003
+  .db 045, 003, 015, 014, 014, 015, 003, 045
 
 gameModeChars:
   .db $80, $90, $83, $93
