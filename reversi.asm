@@ -108,7 +108,7 @@ bgBuffer .rs $80
 board    .rs 8*8
 
   .rsset $0400
-aiSettables .rs 8*8
+aiSettables   .rs 8*8
 aiEvaluations .rs 8*8
 
   .bank 0
@@ -1894,6 +1894,8 @@ AIExecFrame7Skip:
 AIPassSkip:
   ldx #0
   stx aiEvaluationMax
+  lda aiSettables
+  sta aiTargetIndex
 AIDetermineTargetLoop:
   ldy aiSettables,x
   lda aiEvaluations,y
