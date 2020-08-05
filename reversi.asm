@@ -319,12 +319,13 @@ RealTimeModeSkip:
   asl a
   asl a
   tax
+  ldy #0
 AIInitializeEvaluationsLoop:
   lda AIEvaluations,x
-  sta aiEvaluations,x
   inx
-  txa
-  and #%00111111
+  sta aiEvaluations,y
+  iny
+  cpy #8*8
   bne AIInitializeEvaluationsLoop
 
   lda StartSE
